@@ -3,7 +3,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="theme-color" content="#0b0d12"><link rel="manifest" href="beatdeck-manifest.json"><link rel="icon" href="beatdeck-192.png"><link rel="apple-touch-icon" href="beatdeck-192.png">
 <title>BeatDeck</title>
-<link rel="stylesheet" href="bd-style.css?v=5.0.1">
+<link rel="stylesheet" href="bd-style.css?v=5.1.0">
 </head><body>
 <div id="vp"><div id="stage">
   <header id="top">
@@ -36,6 +36,8 @@
   <div class="ch2"><h2>IA</h2><span class="sp"></span><button class="x">Fermer</button></div>
   <div class="row"><button id="iaAuto">Mode AUTO</button><button id="iaNow">Mixer maintenant</button><button id="iaPlanBtn">Voir le plan prévu</button></div>
   <div id="iaPlan"></div>
+  <div class="row"><button id="iaSugg" class="on ai">Meilleurs morceaux pour celui qui joue</button></div>
+  <h3>Exigence sur le style des morceaux</h3><div class="row"><button data-ex="stricte">Stricte (même style uniquement)</button><button data-ex="normale">Normale</button><button data-ex="libre">Libre</button></div>
   <h3>Ambiance</h3><div class="row"><button data-amb="chill">Calme</button><button data-amb="normal">Normale</button><button data-amb="chaud">Chaude</button></div>
   <h3>Technique de transition</h3><div class="row" id="iaTech"></div>
   <h3>Préférences</h3><div class="row"><button id="iaAp">Suivre le plan IA</button><button id="iaDa">Drop automatique</button><button id="iaFx">Effets automatiques</button><button id="iaAf">Corriger les erreurs avant le mix</button></div>
@@ -72,6 +74,11 @@
   <div class="row"><button id="ld_" class="on ok">Mon dossier de musique</button><button id="la">Choisir des fichiers</button></div><p class="mu" id="ls"></p>
   <h3>Duos conseillés (1 appui = deck 1 + deck 2)</h3><div id="dl"></div>
   <h3>Tous les morceaux</h3><input id="q" class="inp" placeholder="Rechercher un morceau…"><div id="ll"></div>
+</div></div>
+<div class="pan" id="sugg" hidden><div class="card wide">
+  <div class="ch2"><h2 id="sgT">Meilleurs morceaux</h2><span class="sp"></span><button class="x">Fermer</button></div>
+  <div class="row"><button data-sd="0">Après le deck 1</button><button data-sd="1">Après le deck 2</button></div>
+  <p id="sgI" class="info"></p><div id="sgL"></div>
 </div></div>
 <div class="pan" id="trk" hidden><div class="card"><div class="ch2"><h2 id="trkt" style="font-size:18px"></h2><span class="sp"></span><button class="x">Fermer</button></div><div id="trkb"></div></div></div>
 
@@ -129,14 +136,14 @@
 <div id="learn" class="bandeau" hidden><div class="card"><h2 id="lnT"></h2><p>Touche maintenant la commande de ta platine (ou à l'écran) qui doit faire cet effet. Tiens SHIFT en même temps pour l'attribuer à la combinaison SHIFT.</p><div class="row"><span class="sp"></span><button id="lnQ">Annuler</button></div></div></div>
 
 <div id="toast"></div>
-<script src="bd-core.js?v=5.0.1"></script>
-<script src="bd-audio.js?v=5.0.1"></script>
-<script src="bd-analyse.js?v=5.0.1"></script>
-<script src="bd-fonctions.js?v=5.0.1"></script>
-<script src="bd-midi.js?v=5.0.1"></script>
-<script src="bd-bib.js?v=5.0.1"></script>
-<script src="bd-auto.js?v=5.0.1"></script>
-<script src="bd-studio.js?v=5.0.1"></script>
-<script src="bd-ui.js?v=5.0.1"></script>
-<script src="bd-app.js?v=5.0.1"></script>
+<script src="bd-core.js?v=5.1.0"></script>
+<script src="bd-audio.js?v=5.1.0"></script>
+<script src="bd-analyse.js?v=5.1.0"></script>
+<script src="bd-fonctions.js?v=5.1.0"></script>
+<script src="bd-midi.js?v=5.1.0"></script>
+<script src="bd-bib.js?v=5.1.0"></script>
+<script src="bd-auto.js?v=5.1.0"></script>
+<script src="bd-studio.js?v=5.1.0"></script>
+<script src="bd-ui.js?v=5.1.0"></script>
+<script src="bd-app.js?v=5.1.0"></script>
 </body></html>

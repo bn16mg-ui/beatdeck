@@ -1,6 +1,6 @@
 'use strict';
 /* ===== BeatDeck 5 · IA de mix : plans, transitions, mode AUTO ===== */
-const PREF_DEF={mt:90,tm:'musical',tb:16,si:false,da:false,fx:true,ap:true,amb:'normal',ft:'',af:true,anaLive:false};
+const PREF_DEF={ex:'stricte',mt:90,tm:'musical',tb:16,si:false,da:false,fx:true,ap:true,amb:'normal',ft:'',af:true,anaLive:false};
 let PREF=Object.assign({},PREF_DEF);
 let savePref=()=>{};
 const AUTO={on:false,queue:[],played:new Set(),lastQ:false,mixNow:0,plan:[],rafale:0,fromDeck:0,SETP:{},info:null};
@@ -165,7 +165,7 @@ function startMix(L,man){
 function autreTitre(){
   const N=1-live(),n=D[N];
   if(transitionEnCours()||!n.a.paused){toast('Impossible pendant un mix');return}
-  if(n.cur){n.done=1;toast('Je cherche un autre morceau…')}else toast('Rien à changer pour le moment');
+  if(n.cur){const o=D[1-N];if(o.cur)noterRefus(o.cur.id,n.cur.id);n.done=1;toast('Noté : je ne referai pas ce duo. Je cherche un autre morceau…')}else toast('Rien à changer pour le moment');
 }
 
 /* --- Mode AUTO --- */
@@ -181,9 +181,9 @@ async function autoTick(){
     if(!o.cur){const it=pickNext(null);if(!it)return;AUTO.played.add(it.id);coach('Je charge : '+infoOf(it));await chargerDeck(L,it);return}
     if(AUTO.queue.length&&n.cur&&!n.done&&!n.fromQ&&n.a.paused){AUTO.played.delete(n.cur.id);n.cur=null}
     if(!n.cur||n.done||!n.a.src){
-      const ro=recOf(o),it=pickNext(ro?{r:ro}:null);if(!it)return;
+      const ro=recOf(o),it=pickNext(ro?{r:ro,id:o.cur&&o.cur.id}:null);if(!it)return;
       const fromQ=AUTO.lastQ;AUTO.played.add(it.id);it.r.gf=famOf(it.r,it.id);
-      const s=ro?pairScore(ro,it.r):null;coach('Je prépare : '+infoOf(it)+(s?' · compatibilité '+Math.round(s.total*100)+' %':''));
+      const s=ro?pairScore(ro,it.r):null;coach(AUTO.warn||('Je prépare : '+infoOf(it)+(s?' · compatibilité '+Math.round(s.total*100)+' %'+(s.son!=null?' · style '+Math.round(s.son*100)+' %':''):'')));
       await chargerDeck(N,it);n.fromQ=fromQ;return}
     if(!n.grid){coach('Je prépare : '+n.name);return}
     if(o.a.ended){G.xf=N;mix();playDeck(n);o.done=1;return}

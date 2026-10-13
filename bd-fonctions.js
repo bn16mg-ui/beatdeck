@@ -169,6 +169,7 @@ F('Navigation','charger_1','Charger la sélection sur le deck 1','CHARGER 1','b'
 F('Navigation','charger_2','Charger la sélection sur le deck 2','CHARGER 2','b','',[],{run:()=>navLoad(1)});
 F('Navigation','charger_ici','Charger la sélection sur ce deck','CHARGER','b','',[],{run:c=>navLoad(c.i)});
 F('Navigation','charger_libre','Charger la sélection sur le deck à l\'arrêt','CHARGER','b','',[],{run:()=>{const i=D[0].a.paused&&live()!=0?0:D[1].a.paused?1:D[0].a.paused?0:-1;if(i<0)toast('Les deux decks jouent');else navLoad(i)}});
+F('Navigation','suggestions','Meilleurs morceaux pour celui qui joue','SUGGESTIONS','b','Classe ta musique selon ce qui va le mieux après le morceau en cours (style, tempo, tonalité).',[],{run:c=>openSugg(c.i)});
 F('Navigation','ouvrir_liste','Ouvrir / fermer la liste des morceaux','MORCEAUX','b','',[],{run:()=>togglePanel('libm')});
 
 /* ---------- Enchaînements (d'un deck à l'autre) ---------- */

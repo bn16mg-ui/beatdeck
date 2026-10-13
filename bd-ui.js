@@ -185,6 +185,7 @@ function renderIA(){
   $('iaAuto').classList.toggle('on',AUTO.on);$('iaAuto').classList.add('ai');
   $('iaTech').innerHTML=TECHS.map(([k,n])=>`<button data-k="${k}"${PREF.ft==k?' class="on ai"':''}>${n}</button>`).join('');
   QA('#pal_ia [data-amb]').forEach(b=>{b.classList.toggle('on',b.dataset.amb==PREF.amb);b.classList.add('ai')});
+  QA('#pal_ia [data-ex]').forEach(b=>{b.classList.toggle('on',b.dataset.ex==(PREF.ex||'stricte'));b.classList.add('ai')});
   [['iaAp','ap'],['iaDa','da'],['iaFx','fx'],['iaAf','af']].forEach(([id,k])=>{$(id).classList.toggle('on',!!PREF[k]);$(id).classList.add('ok')});
 }
 function iaPlan(){
@@ -201,6 +202,8 @@ function initIA(){
   $('iaAuto').onclick=()=>{setAuto(!AUTO.on);renderIA()};
   $('iaNow').onclick=()=>{if(AUTO.on){AUTO.mixNow=1;toast('Mix lancé')}else aiMix(true)};
   $('iaPlanBtn').onclick=iaPlan;
+  $('iaSugg').onclick=()=>openSugg(live());
+  QA('#pal_ia [data-ex]').forEach(b=>b.onclick=()=>{PREF.ex=b.dataset.ex;savePref();renderIA();D.forEach(d=>{if(d.a.paused&&d.cur&&!d.done&&AUTO.on)d.done=1});toast('Exigence : '+b.textContent)});
   $('iaTech').onclick=e=>{const b=e.target.closest('button');if(!b)return;PREF.ft=b.dataset.k;savePref();D.forEach(d=>d.plan=null);renderIA();toast('Technique : '+b.textContent)};
   QA('#pal_ia [data-amb]').forEach(b=>b.onclick=()=>{const k=b.dataset.amb,[m,t,i,d]=AMB[k];Object.assign(PREF,{amb:k,mt:m,tb:t,si:i,da:d});savePref();D.forEach(x=>x.plan=null);renderIA();toast('Ambiance '+b.textContent.toLowerCase()+' : '+lblDur(String(m))+' par morceau, transition '+t+' temps'+(d?', drop automatique':''))});
   [['iaAp','ap','Suivre le plan IA'],['iaDa','da','Drop automatique'],['iaFx','fx','Effets automatiques'],['iaAf','af','Correction des erreurs']].forEach(([id,k,n])=>$(id).onclick=()=>{PREF[k]=!PREF[k];savePref();renderIA();toast(n+(PREF[k]?' : activé':' : coupé'))});
@@ -363,4 +366,30 @@ function calFin(){
   if(spread>70){$('calR').textContent='Mesure peu régulière (écart '+Math.round(spread)+' ms). Recommence en suivant bien le rythme.';return}
   LAT=clamp(m/1000,0,.6);LS.set('bd5_lat',LAT);renderSet();
   $('calR').innerHTML='Retard mesuré : <b>'+Math.round(m)+' ms</b> (régularité '+(spread<30?'très bonne':'correcte')+'). Il est enregistré et utilisé pour caler boucles, effets et affichage sur ce que tu entends.';
+}
+
+/* ---------- Meilleurs morceaux pour celui qui joue ---------- */
+let SGD=0;
+function openSugg(i){SGD=i;openPanel('sugg');renderSugg()}
+function renderSugg(){
+  const d=D[SGD],r=recOf(d);QA('#sugg [data-sd]').forEach(b=>{b.classList.toggle('on',+b.dataset.sd==SGD);b.classList.add('ai')});
+  $('sgT').textContent='Meilleurs morceaux après le deck '+(SGD+1);
+  if(!r){$('sgI').textContent='Charge un morceau analysé sur le deck '+(SGD+1)+'.';$('sgL').innerHTML='';return}
+  const niv=PREF.ex||'stricte',L=classer(r,d.cur&&d.cur.id),ok=L.filter(x=>passe(x,niv)),non=L.length-ok.length;
+  $('sgI').innerHTML='<b>'+esc(d.name)+'</b> · '+nf(r.bpm,1)+' BPM · '+cm(r.key)+' · '+(r.rf?RFN[r.rf]+' ('+confTxt(r.rfc)+')':'style pas encore analysé')+'<br>'+ok.length+' morceau'+(ok.length>1?'x':'')+' compatible'+(ok.length>1?'s':'')+' avec l\'exigence « '+niv+' »'+(non?' · '+non+' écarté'+(non>1?'s':''):'');
+  const o=1-SGD,row=x=>{const sc=x.sc,c=[];c.push('<b>'+Math.round(x.s*100)+' %</b>');
+    if(sc.son!=null)c.push('style '+Math.round(sc.son*100)+' %'+(x.it.r.rf?' · '+RFC[x.it.r.rf]:''));
+    c.push('tempo '+(sc.ad<=3?'✓':sc.ad<=6?'~':'✗')+' '+Math.round(x.it.r.bpm));
+    if(sc.key!=null)c.push('tonalité '+cm(r.key)+'→'+cm(x.it.r.key)+(sc.key>=.85?' ✓':sc.key>=.4?' ~':' ✗'));
+    if(x.refus)c.push('<span style="color:var(--bad)">déjà refusé</span>');
+    return`<div class="lr"><span class="wrap"><b>${esc(x.it.name)}</b><br><small class="mu">${c.join(' · ')}</small></span><button data-sl="${lib.indexOf(x.it)}" class="d${o}">Deck ${o+1}</button><button data-sq="${lib.indexOf(x.it)}">File</button><button data-sx="${lib.indexOf(x.it)}" title="Ne va pas avec ce morceau">✕</button></div>`};
+  $('sgL').innerHTML=(ok.length?ok.slice(0,12).map(row).join(''):'<p class="info">Aucun morceau assez proche dans ta musique. Ajoute des morceaux du même style, ou passe l\'exigence sur « Normale ».</p>')+
+    (non&&niv!='libre'?'<details><summary>Écartés (style ou tempo trop différents)</summary>'+L.filter(x=>!passe(x,niv)).slice(0,10).map(row).join('')+'</details>':'');
+}
+function initSugg(){
+  QA('#sugg [data-sd]').forEach(b=>b.onclick=()=>{SGD=+b.dataset.sd;renderSugg()});
+  $('sgL').onclick=e=>{const b=e.target.closest('button');if(!b)return;const d=D[SGD];
+    if(b.dataset.sl){const it=lib[+b.dataset.sl];chargerDeck(1-SGD,it).then(ok=>{if(ok){AUTO.played.add(it.id);toast('Deck '+(2-SGD)+' : '+it.name);$('sugg').hidden=true}})}
+    else if(b.dataset.sq){const it=lib[+b.dataset.sq];AUTO.queue.push(it);toast('File d\'attente ('+AUTO.queue.length+') : '+it.name)}
+    else if(b.dataset.sx){const it=lib[+b.dataset.sx];if(d.cur)noterRefus(d.cur.id,it.id);toast('Noté : « '+it.name+' » ne va pas après ce morceau');renderSugg()}};
 }

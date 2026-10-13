@@ -1,6 +1,6 @@
 'use strict';
 /* ===== BeatDeck 5 · analyse musicale locale (rien n'est envoyé sur Internet) ===== */
-const ANA_V=4;
+const ANA_V=5;
 const KP=[[6.35,2.23,3.48,2.33,4.38,4.09,2.52,5.19,2.39,3.66,2.29,2.88],[6.33,2.68,3.52,5.38,2.6,3.53,2.54,4.75,3.98,2.69,3.34,3.17]];
 function keyOf(x,sr){
   const W=16384,ch=new Float32Array(12),w=new Float32Array(W),st=Math.max(0,Math.floor(x.length/2-sr*15)),en=Math.min(x.length,st+sr*30);
@@ -16,6 +16,49 @@ function keyOf(x,sr){
   all.sort((a,b)=>b.r-a.r);const best=all[0],sec=all.find(x=>x.n!=best.n);
   return{n:best.n,b:best.b,c:+clamp(((best.r-(sec?sec.r:0))-.02)/.12).toFixed(2)};
 }
+
+/* ===== Style du son : empreinte rythmique mesurée dans l'audio =====
+   Graves (grosse caisse) et aigus (caisse claire, charleston) relevés sur chaque double croche d'une mesure.
+   Sert à reconnaître la famille de rythme (4 temps réguliers, syncopé type dembow, demi-temps…) et à comparer deux sons. */
+function rythmeOf(x,sr,bpm,off){
+  const H=256,fps=sr/H,n=Math.floor(Math.min(x.length,sr*150)/H);if(n<fps*20||!bpm)return null;
+  const kL=1-Math.exp(-6.2832*150/sr),kH=1-Math.exp(-6.2832*2500/sr);let yl=0,yh=0,pl=0,ph=0;
+  const oL=new Float32Array(n),oH=new Float32Array(n);
+  for(let i=0;i<n;i++){let sl=0,sh=0;const b=i*H;for(let j=0;j<H;j++){const v=x[b+j];yl+=kL*(v-yl);yh+=kH*(v-yh);const h=v-yh;sl+=yl*yl;sh+=h*h}
+    const el=Math.sqrt(sl/H),eh=Math.sqrt(sh/H);oL[i]=Math.max(0,el-pl);oH[i]=Math.max(0,eh-ph);pl=el;ph=eh}
+  const step=60/bpm/4,K=new Float64Array(16),HH=new Float64Array(16);
+  const pk=(o,f)=>{let m=0;for(let q=Math.max(0,f-2);q<=Math.min(n-1,f+2);q++)if(o[q]>m)m=o[q];return m};
+  let c=0;for(let t=off;t*fps<n-3;t+=step,c++){const f=Math.round(t*fps),k=c%16;K[k]+=pk(oL,f);HH[k]+=pk(oH,f)}
+  const beat=60/bpm;let s3=0,s2=0;for(let t=off;(t+beat)*fps<n-3;t+=beat){s3+=pk(oH,Math.round((t+beat/3)*fps))+pk(oH,Math.round((t+2*beat/3)*fps));s2+=2*pk(oH,Math.round((t+beat/2)*fps))}
+  const nz=a=>{const m=Math.max(...a)||1;return[...a].map(v=>+(v/m).toFixed(2))};
+  const rk=nz(K),rh=nz(HH),sw=+clamp(s3/((s2+s3)||1)).toFixed(2);
+  return Object.assign({rk,rh,sw},familleRythme(rk,rh));
+}
+const m4=(a,r)=>[0,4,8,12].reduce((s,i)=>s+a[(i+r)%16],0)/4;
+function familleRythme(rk,rh){
+  const bk=[0,4,8,12].map(i=>rk[i]),reg=Math.min(...bk)/(Math.max(...bk)||1);
+  const hK=[0,1,2,3].map(r=>m4(rk,r)),hH=[0,1,2,3].map(r=>m4(rh,r)),mH=Math.max(...hH)||1;
+  const sync=Math.max(hH[3]/mH,hK[3]/(hK[0]||1),hH[1]/mH*.8);
+  let rf='autre',c=.4;
+  if(reg<.45){rf='demi';c=clamp((.55-reg)*2.5)}
+  else if(sync>=.55){rf='syncope';c=clamp((sync-.45)*2)}
+  else if(reg>=.6&&hK[0]>=1.5*Math.max(hK[1],hK[2],hK[3])){rf='quatre';c=clamp((reg-.5)*2)}
+  return{rf,rfc:+c.toFixed(2)};
+}
+const RFN={quatre:'4 temps réguliers (house, pop, électro, disco)',syncope:'rythme syncopé (dembow, reggaeton, shatta, dancehall, afro)',demi:'rythme lourd en demi-temps (rap, R&B)',autre:'rythme non classé'};
+const RFC={quatre:'4 temps',syncope:'syncopé',demi:'demi-temps',autre:'autre'};
+function corrP(a,b){const n=a.length;let ma=0,mb=0;for(let i=0;i<n;i++){ma+=a[i];mb+=b[i]}ma/=n;mb/=n;let nu=0,da=0,db=0;for(let i=0;i<n;i++){const u=a[i]-ma,v=b[i]-mb;nu+=u*v;da+=u*u;db+=v*v}return da&&db?nu/Math.sqrt(da*db):0}
+function sim16(a,b){let m=-1;for(const s of[0,4,8,12]){const r=corrP(a,b.map((_,i)=>b[(i+s)%16]));if(r>m)m=r}return(m+1)/2}
+/* ressemblance de style entre deux morceaux, de 0 (rien à voir) à 1 (même style) */
+function styleSim(ra,rb){
+  if(!ra||!rb||!ra.rk||!rb.rk)return null;
+  const k=sim16(ra.rk,rb.rk),h=sim16(ra.rh,rb.rh),tim=1-Math.min(1,Math.abs((ra.lw||0)-(rb.lw||0))*2.5+Math.abs((ra.br||0)-(rb.br||0))*4),sw=1-Math.min(1,Math.abs((ra.sw||0)-(rb.sw||0))*3);
+  let s=.35*k+.3*h+.2*tim+.15*sw;
+  if(familleConflit(ra,rb))s=Math.min(s,.35);
+  return s;
+}
+const familleConflit=(ra,rb)=>!!(ra&&rb&&ra.rf&&rb.rf&&ra.rf!='autre'&&rb.rf!='autre'&&ra.rf!=rb.rf&&(ra.rfc||0)>=.3&&(rb.rfc||0)>=.3);
+
 const cumul=pk=>{const c=new Float32Array(pk.length+1);for(let i=0;i<pk.length;i++)c[i+1]=c[i]+pk[i];return c};
 const mn=(c,a,b)=>{a=Math.max(0,Math.floor(a*50));b=Math.min(c.length-1,Math.floor(b*50));return b>a?(c[b]-c[a])/(b-a):0};
 function exitOf(r){ // fin de phrase (32 temps) juste avant que l'énergie retombe
@@ -56,10 +99,11 @@ function analyseBuf(buf){
   const L=60/b2*fps;let ph=0;best=0;for(let q=0;q<L;q+=.25){let s=0;for(let t=q;t<n-1;t+=L)s+=at(t);if(s>best){best=s;ph=q}}
   const R={v:ANA_V,bpm:Math.round(b2*100)/100,bc,off:ph/fps,pk,norm:Math.min(2,Math.max(.4,.12/(Math.sqrt(sq/cn)||.1))),key:keyOf(x,sr),dur:buf.duration};
   try{R.ex=exitOf(R);R.dr=entryList(R).map(e=>[+e.t.toFixed(2),+e.j.toFixed(3),+e.a.toFixed(3)]);R.en=+mn(cumul(pk),0,pk.length/50).toFixed(3)}catch(e){}
+  try{const ry=rythmeOf(x,sr,R.bpm,R.off);if(ry)Object.assign(R,ry)}catch(e){}
   try{const bf=bandFeat(x,sr);if(bf){R.bd=bf.bd;R.lw=bf.lw;R.br=bf.br}R.pc=+(o.reduce((s,v)=>s+v,0)/n/(Math.sqrt(sq/cn)||.1)).toFixed(4);R.bv=tempoSpread(o,fps,b2)}catch(e){}
   return R;
 }
-const slim=r=>({v:r.v,bpm:r.bpm,bc:r.bc,off:r.off,norm:r.norm,key:r.key,dur:r.dur,en:r.en,ex:r.ex,dr:r.dr,bd:r.bd,lw:r.lw,br:r.br,pc:r.pc,bv:r.bv,tg:r.tg});
+const slim=r=>({rk:r.rk,rh:r.rh,sw:r.sw,rf:r.rf,rfc:r.rfc,v:r.v,bpm:r.bpm,bc:r.bc,off:r.off,norm:r.norm,key:r.key,dur:r.dur,en:r.en,ex:r.ex,dr:r.dr,bd:r.bd,lw:r.lw,br:r.br,pc:r.pc,bv:r.bv,tg:r.tg});
 const confTxt=c=>c==null?'':c>=.6?'sûr':c>=.3?'probable':'incertain';
 /* ===== v4 · Analyse réelle des morceaux ===== */
 const BC=new WeakMap(),RC=new WeakMap();
@@ -146,16 +190,20 @@ const lvF=r=>.5+.5*lvl(r)/10;
 /* ===== Compatibilité ===== */
 const foldR=(a,b)=>{let r=b/a;while(r>1.4)r/=2;while(r<.7)r*=2;return r};
 function pairScore(ra,rb,ga,gb){
-  if(!ra||!rb||!ra.bpm||!rb.bpm)return{total:0,tempo:0,key:null,genre:null,energy:null,rhythm:null,ad:99,notes:['Tempo non détecté']};
+  if(!ra||!rb||!ra.bpm||!rb.bpm)return{total:0,tempo:0,key:null,genre:null,son:null,energy:null,rhythm:null,ad:99,notes:['Tempo non détecté'],conflit:false};
   const ad=Math.abs(foldR(ra.bpm,rb.bpm)-1)*100,notes=[];
   const tempo=ad<=3?1:ad<=6?.85-(ad-3)*.07:ad<=10?.6-(ad-6)*.12:.1;
   const key=ra.key&&rb.key?kcF(ra.key,rb.key):null;if(key==null)notes.push('Tonalité non détectée');
-  const genre=gcompat(ga||ra.gf||'',gb||rb.gf||'');if(genre==null)notes.push('Genre inconnu (renseigne-le dans les détails du morceau)');
+  const genre=gcompat(ga||ra.gf||'',gb||rb.gf||'');
+  const son=styleSim(ra,rb);if(son==null)notes.push('Style du son pas encore analysé');
+  const conflit=familleConflit(ra,rb);
   const energy=ra.v>=3&&rb.v>=3?1-Math.min(1,Math.abs(lvl(ra)-lvl(rb))/6):null;
   const rhythm=ra.pc&&rb.pc?1-Math.min(1,Math.abs(rankIn(LIBSTAT?LIBSTAT.pc:[],ra.pc)-rankIn(LIBSTAT?LIBSTAT.pc:[],rb.pc))*1.3):null;
-  const W=[[tempo,.3],[key,.2],[genre,.25],[energy,.15],[rhythm,.1]];let s=0,w=0;for(const[v,k]of W)if(v!=null){s+=v*k;w+=k}
-  let total=w?s/w:0;if(tempo<.3)total=Math.min(total,.45);if(genre!=null&&genre<.3)total=Math.min(total,.55);
-  return{total,tempo,key,genre,energy,rhythm,ad,notes};
+  const W=[[tempo,.25],[son,.3],[key,.15],[genre,.12],[energy,.1],[rhythm,.08]];let s=0,w=0;for(const[v,k]of W)if(v!=null){s+=v*k;w+=k}
+  let total=w?s/w:0;
+  if(tempo<.3)total=Math.min(total,.4);if(genre!=null&&genre<.3)total=Math.min(total,.45);
+  if(son!=null&&son<.45)total=Math.min(total,.45);if(conflit)total=Math.min(total,.35);
+  return{total,tempo,key,genre,son,energy,rhythm,ad,notes,conflit};
 }
 const kcF=(a,b)=>{if(!a||!b)return .5;const d=Math.min((a.n-b.n+12)%12,(b.n-a.n+12)%12);return a.n==b.n?(a.b==b.b?1:.9):d==1&&a.b==b.b?.85:d==2&&a.b==b.b?.4:.1};
 
@@ -213,6 +261,7 @@ function whyOf(ra,rb,P){
   const sc=P.sc,w=[],Sa=structure(ra),Sb=structure(rb),sa=secAt(Sa,P.exit),sb=secAt(Sb,P.entry);
   w.push('Tempo : '+ra.bpm.toFixed(1)+' → '+rb.bpm.toFixed(1)+' BPM, écart '+sc.ad.toFixed(1)+' %'+(sc.ad<=3?' (très propre)':sc.ad<=6?' (le suivant sera légèrement ajusté)':' (gros écart)'));
   if(sc.key!=null)w.push('Tonalités '+cmF(ra.key)+' → '+cmF(rb.key)+' : '+(sc.key>=.85?'compatibles':sc.key>=.4?'proches, mélange court':'incompatibles'));
+  if(sc.son!=null)w.push('Style du son : '+(sc.son>=.7?'très proche':sc.son>=.5?'assez proche':'différent')+(ra.rf&&rb.rf?' ('+RFC[ra.rf]+' → '+RFC[rb.rf]+')':''));
   if(sc.genre!=null)w.push('Styles : '+(sc.genre>=.7?'cohérents':sc.genre>=.4?'voisins':'éloignés, transition préparée'));
   w.push('Sortie de A à '+fmtF(P.exit)+(sa?' ('+SECN[sa.k]+')':'')+' · entrée de B à '+fmtF(P.entry)+(sb?' ('+SECN[sb.k]+')':''));
   const m=P.metrics;if(BLENDISH.includes(P.tech)){w.push(m.vox>.5?'Voix probables des deux côtés : médiums de A coupés pendant le mélange':m.vox<.3?'Peu de voix qui se chevauchent sur ce passage':'Voix modérées sur le passage')}
@@ -258,6 +307,7 @@ function detectIssues(P,ra,rb){
   else if(sc.ad>6&&bl&&P.tb>8)add('tempo','warn','Écart de tempo de '+sc.ad.toFixed(1)+' % sur '+P.tb+' temps : les rythmes vont se décaler.',{tb:8});
   if((ra.bv>1.5||rb.bv>1.5)&&bl&&P.tb>8)add('tvar','warn','Tempo instable sur '+(ra.bv>1.5?'A':'B')+' (±'+Math.max(ra.bv,rb.bv).toFixed(1)+' BPM) : un mélange long se désynchroniserait.',{tb:8});
   if(sc.key!=null&&sc.key<.4&&bl&&P.tb>8)add('key','warn','Tonalités '+cmF(ra.key)+' → '+cmF(rb.key)+' peu compatibles : les mélodies vont se battre sur '+P.tb+' temps.',{tb:8,tech:'filter'});
+  if(sc.conflit||(sc.son!=null&&sc.son<.45))add('style','warn','Styles très différents ('+(RFC[ra.rf]||'?')+' → '+(RFC[rb.rf]||'?')+') : l\'enchaînement risque de sonner faux, sauf effet de coupure.',{tech:'echo'});
   if(sc.genre!=null&&sc.genre<.4&&bl&&P.tb>8)add('genre','warn','Changement de style ('+(GFN[ra.gf]||'?')+' → '+(GFN[rb.gf]||'?')+') trop marqué pour un long mélange : à préparer avec un écho court ou à éviter.',{tech:'echo'});
   if(bl&&Math.abs(eA-eB)>.35)add('energy','warn',eB>eA?'Montée d\'énergie trop brutale pour un simple fondu.':'Chute d\'énergie trop brutale pour un simple fondu.',eB>eA&&(rb.dr&&rb.dr.length)?{tech:'drop'}:{tech:'echo'});
   if(bl&&vo>.5&&P.tb>4){const alt=bestInstrEntry(rb,P);if(!P.eq.midCut)add('vocal','warn','Voix probables sur les deux titres en même temps pendant le mélange.',{eq:{midCut:true}});else if(vo>.75)add('vocal','warn','Voix très présentes des deux côtés malgré la coupe des médiums.',alt!=null?{entry:alt}:{tech:'echo'})}

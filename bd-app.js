@@ -45,8 +45,9 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState=='
 async function boot(){
   if(!PROFS[CURP]){CURP=Object.keys(PROFS)[0]||'Mon profil';if(!PROFS[CURP])PROFS[CURP]=newProf()}
   useProf(PROFS[CURP]);saveProf();
-  buildStage();initHeader();initTemps();initIA();initFx();initRc();initEditor();initSet();initProfils();stInit();
+  buildStage();initHeader();initTemps();initIA();initFx();initRc();initEditor();initSet();initProfils();stInit();initSugg();
   $('inst').onclick=()=>ip&&ip.prompt();
+  onDeckLoaded=i=>{if(!AUTO.on&&!D[1-i].cur&&recOf(D[i]))coach('Pour choisir le meilleur morceau suivant : IA → « Meilleurs morceaux pour celui qui joue »',0,8000);if(!$('sugg').hidden)renderSugg()};
   if(LS.get('bd5_cas',false))route(true);
   applyUI();addEventListener('resize',fit);addEventListener('orientationchange',()=>setTimeout(fit,300));document.addEventListener('fullscreenchange',()=>setTimeout(fit,300));
   mix();setAuto(false,true);requestAnimationFrame(frame);
