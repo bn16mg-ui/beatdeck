@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#05031a"><link rel="icon" href="beatdeck-192.png"><link rel="apple-touch-icon" href="beatdeck-192.png">
+<title>BeatDeck Télécommande</title>
+<style>
+:root{--nuit:#05031a;--verre:#140d3cd9;--bord:#8f7bff40;--tx:#ece8ff;--mu:#9a92c9;--d0:#38c8ff;--d1:#b46bff;--ok:#5ef0d2;--bad:#ff6f9f}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;min-height:100%;background:var(--nuit);color:var(--tx);font:16px/1.35 system-ui,-apple-system,Roboto,sans-serif}
+body{background:radial-gradient(80% 50% at 10% 0,#3b1b8f66,transparent 70%),radial-gradient(70% 50% at 100% 100%,#0f4fb855,transparent 70%),var(--nuit);background-attachment:fixed;padding:0 14px calc(90px + env(safe-area-inset-bottom))}
+[hidden]{display:none!important}
+button{font:inherit;font-weight:700;color:var(--tx);background:#1d1450;border:1px solid var(--bord);border-radius:12px;padding:11px 14px;cursor:pointer}
+button:active{transform:scale(.96)}
+header{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:10px;padding:14px 0 10px;background:linear-gradient(var(--nuit) 70%,transparent)}
+.logo{font-weight:800;letter-spacing:5px;font-size:20px;background:linear-gradient(90deg,var(--d0),var(--d1));-webkit-background-clip:text;background-clip:text;color:transparent}
+.etat{margin-left:auto;font-size:13px;color:var(--mu);display:flex;align-items:center;gap:6px}
+.etat:before{content:"";width:9px;height:9px;border-radius:50%;background:#5a5480}.etat.ok{color:var(--tx)}.etat.ok:before{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+.carte{background:var(--verre);border:1px solid var(--bord);border-radius:18px;padding:14px;margin:10px 0}
+h2{font-size:20px;margin:4px 0 10px}
+.code{width:100%;font-size:32px;text-align:center;letter-spacing:10px;text-transform:uppercase;padding:12px;border-radius:14px;border:1px solid var(--bord);background:#0a0628;color:var(--tx);font-weight:700}
+.fort{background:linear-gradient(90deg,#2f7bff,#7b3cff);border-color:transparent;color:#fff;width:100%;margin-top:10px;font-size:18px;padding:14px}
+.mu{color:var(--mu)}.petit{font-size:13px}
+.decks{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.deck{border-radius:16px;padding:12px;background:#0d0930cc;border:1px solid var(--bord);border-top:3px solid var(--c);min-width:0}
+.deck b{color:var(--c);font-size:13px;letter-spacing:2px}.deck .nm{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:4px 0}
+.deck .inf{font-size:13px;color:var(--mu);min-height:18px}.deck button{width:100%;margin-top:8px;font-size:22px;padding:8px}
+.deck.joue{box-shadow:0 0 20px -6px var(--c)}
+.tabs{display:flex;gap:8px;margin:14px 0 8px}.tabs button{flex:1}.tabs button.on{background:linear-gradient(90deg,#2f7bff,#7b3cff);border-color:transparent;color:#fff}
+.inp{width:100%;padding:12px 14px;border-radius:14px;background:#0a0628;color:var(--tx);border:1px solid var(--bord);font:inherit;margin-bottom:6px}
+.ligne{display:flex;align-items:center;gap:8px;padding:10px;border-radius:14px;background:#120c34aa;margin:6px 0}
+.ligne .t{flex:1;min-width:0}.ligne .t div{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ligne .t small{color:var(--mu)}
+.ligne button{padding:10px 0;min-width:44px;font-size:15px}.ligne .b0{color:var(--d0)}.ligne .b1{color:var(--d1)}
+.ligne .ens{min-width:auto;padding:10px 12px;background:linear-gradient(90deg,#14806b,#2f7bff);border-color:transparent;color:#fff}
+.coeur{color:#ff6f9f;margin-right:4px}
+.duo .t div span{color:#ff6f9f}
+.vide{color:var(--mu);text-align:center;padding:24px 8px}
+#toast{position:fixed;left:14px;right:14px;bottom:calc(16px + env(safe-area-inset-bottom));background:#1d1450f2;border:1px solid var(--bord);border-radius:16px;padding:14px;text-align:center;font-weight:600;opacity:0;transform:translateY(20px);transition:.25s;pointer-events:none;z-index:9}
+#toast.on{opacity:1;transform:none}#toast.ok{border-color:var(--ok)}#toast.err{border-color:var(--bad)}
+</style>
+</head><body>
+<header><span class="logo">BEATDECK</span><span class="mu petit">télécommande</span><span id="etat" class="etat">Hors ligne</span></header>
+
+<section id="ecCo" class="carte">
+  <h2>Relier à ta tablette</h2>
+  <p class="mu">Sur la tablette, touche 📱 en haut, active la télécommande, puis tape ici le code affiché (ou scanne le QR code avec l'appareil photo).</p>
+  <input id="code" class="code" maxlength="6" autocomplete="off" autocapitalize="characters" placeholder="CODE">
+  <button id="go" class="fort">Se connecter</button>
+  <p id="coMsg" class="mu petit"></p>
+</section>
+
+<section id="ecApp" hidden>
+  <div class="decks">
+    <div class="deck" id="dk0" style="--c:var(--d0)"><b>DECK 1</b><div class="nm">—</div><div class="inf"></div><button data-lec="0">▶</button></div>
+    <div class="deck" id="dk1" style="--c:var(--d1)"><b>DECK 2</b><div class="nm">—</div><div class="inf"></div><button data-lec="1">▶</button></div>
+  </div>
+  <div class="tabs"><button data-o="sons" class="on">🎵 Sons</button><button data-o="duos">♥ Duos</button></div>
+  <input id="q" class="inp" placeholder="Rechercher une musique…">
+  <div id="liste"></div>
+  <p class="mu petit">« Ensuite » : la musique se met sur le deck qui ne joue pas et passera juste après. « 1 » / « 2 » : sur ce deck précis (seulement s'il ne joue pas).</p>
+</section>
+<div id="toast"></div>
+<script src="peerjs.min.js"></script>
+<script src="bd-tel.js?v=6.6.0"></script>
+</body></html>

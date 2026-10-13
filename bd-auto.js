@@ -80,7 +80,8 @@ function propositions(du){
   return out.sort((x,y)=>y.score-x.score);
 }
 // transition utilisée pour un duo : celle que tu as validée, sinon la mieux notée
-function planDuo(du){if(du.trans)return du.trans;const P=propositions(du);return P&&P[0]?Object.assign({auto:true},P[0]):null}
+const PLANC={};
+function planDuo(du){if(du.trans)return du.trans;const k=du.a+'|'+du.b;if(PLANC[k])return PLANC[k];const P=propositions(du),r=P&&P[0]?Object.assign({auto:true},P[0]):null;if(r)PLANC[k]=r;return r}
 function prochaineSortie(du,tech,pos){const S=lireStructure(sonDe(du.a));if(!S)return null;const L=sorties(S,tech).filter(e=>e.t>pos+4).sort((x,y)=>x.t-y.t);const ok=L.find(e=>e.q>-.2)||L[0];return ok?ok.t:null}
 
 /* ---------- 3. le guide « faire semblant » ---------- */
@@ -118,7 +119,7 @@ setInterval(()=>{
 
 /* ---------- 4. mode DJ automatique ---------- */
 const AUTO={on:LS.get('bd6_auto',false),job:null,fx:null,decks:[],bloque:0,prise:{},fait:{},alt:0,cool:[0,0],msg:'',ecoute:null};
-function setAuto(on){AUTO.on=on;LS.set('bd6_auto',on);$('logo').classList.toggle('auto',on);toast(on?'Mode DJ automatique activé (seulement pour tes duos)':'Mode DJ automatique désactivé');if(!on){AUTO.msg='';guideEffacer()}}
+function setAuto(on){AUTO.on=on;LS.set('bd6_auto',on);$('logo').classList.toggle('auto',on);toast(on?'Mode DJ automatique activé':'Mode DJ automatique désactivé');if(on){if(ANA.en||SONS.some(s=>!s.meta||(!s.meta.erreur&&(s.meta.v||1)<META_V))){analyserTout();toast('Mode DJ automatique activé : j\'analyse tes musiques, puis je te propose des duos')}else proposerDuos(true)}if(!on){AUTO.msg='';guideEffacer()}}
 let tapes=[];
 function tapeLogo(){const n=performance.now();tapes=tapes.filter(t=>n-t<900);tapes.push(n);if(tapes.length>=3){tapes=[];setAuto(!AUTO.on)}}
 // commandes « mimées » : ignorées pendant que l'appli a la main
@@ -148,7 +149,7 @@ function autoTick(){
   if(AUTO.ecoute)return;
   let msg='';
   for(const X of D){
-    if(X.a.paused||!X.sonId||X.chargement)continue;const du=duoDe(X.sonId),O=D[1-X.i];if(!du)continue;
+    if(X.a.paused||!X.sonId||X.chargement)continue;const du=paireDe(X.sonId),O=D[1-X.i];if(!du)continue;
     if(O.sonId!=du.b||!O.a.paused||O.chargement){continue}
     const plan=planDuo(du);if(!plan){msg='Analyse du duo en cours…';continue}
     const pos=posOf(X),b=wallBeat(X),rate=rateOf(X);let exit=plan.exit,pl=plan;
@@ -164,14 +165,14 @@ function autoTick(){
 setInterval(autoTick,200);
 
 /* petits effets pendant les morceaux des duos, juste avant une montée ou une pause */
-const dansDuo=id=>DUOS.some(d=>d.a==id||d.b==id);
+const dansDuo=id=>DUOS.some(d=>d.a==id||d.b==id)||!!TEMP[id]||Object.values(TEMP).includes(id);
 function autoEffets(){
   for(const X of D){
     if(X.a.paused||!X.sonId||!X.grid||X.lp||!dansDuo(X.sonId))continue;
     const S=lireStructure(sonDe(X.sonId));if(!S)continue;
     const pos=posOf(X),B=beatLen(X),b=wallBeat(X);if(pos<AUTO.cool[X.i])continue;
     // pas d'effet juste avant la transition du duo
-    const du=duoDe(X.sonId);if(du){const pl=planDuo(du);if(pl&&pl.exit-pos<24*B&&pl.exit>pos)continue}
+    const du=paireDe(X.sonId);if(du){const pl=planDuo(du);if(pl&&pl.exit-pos<24*B&&pl.exit>pos)continue}
     const cle=t=>X.sonId+'@'+Math.round(t);
     for(const p of S.drops){const td=S.t(p),n=(td-pos)/B;if(AUTO.fait[cle(td)])continue;
       // un coup sur deux : filtre qui monte pendant 8 temps, sinon roulement sur le dernier temps
@@ -199,7 +200,7 @@ function effetEcho(X,w,b){
 
 /* ---------- 5. préparer la transition d'un duo (écran) ---------- */
 const PREP={du:null,props:[],ouvert:-1};
-function ouvrirPrep(id){const du=DUOS.find(d=>d.id==id);if(!du)return;PREP.du=du;PREP.props=propositions(du)||[];PREP.ouvert=-1;$('prep').hidden=false;rendrePrep()}
+function ouvrirPrep(id){const du=DUOS.find(d=>d.id==id)||PROPOS.find(d=>d.id==id);if(!du)return;PREP.du=du;PREP.props=propositions(du)||[];PREP.ouvert=-1;$('prep').hidden=false;rendrePrep()}
 function etoiles(s){const mx=Math.max(...PREP.props.map(p=>p.score),.01),n=clamp(Math.round(5*s/mx),1,5);return'★'.repeat(n)+'☆'.repeat(5-n)}
 function frise(S,mark,col){
   if(!S)return'';const w=100/S.P;
@@ -262,9 +263,37 @@ function initAuto(){
     const b=e.target.closest('[data-pa]');if(!b)return;const act=b.dataset.pa,c=e.target.closest('[data-k]'),k=c?+c.dataset.k:-1;
     if(act=='retire'){delete PREP.du.trans;sauverDuos();rendrePrep();toast('Transition retirée');return}
     if(act=='ecoute'){ecouter(k);return}
-    if(act=='valide'){const P=PREP.props[k];PREP.du.trans={tech:P.tech,exit:P.exit,entry:P.entry,riser:!!P.riser,valide:Date.now()};sauverDuos();rendrePrep();toast('✓ Transition validée pour ce duo');return}
+    if(act=='valide'){const P=PREP.props[k];if(PREP.du.propose&&!garderPropose(PREP.du))return;PREP.du.trans={tech:P.tech,exit:P.exit,entry:P.entry,riser:!!P.riser,valide:Date.now()};sauverDuos();rendrePrep();rendreDuos();toast('✓ Transition validée pour ce duo');return}
     if(act=='modif'){PREP.ouvert=PREP.ouvert==k?-1:k;rendrePrep();return}
     modifier(k,act,b.dataset.t);
   };
   $('prL').addEventListener('click',clic);$('prV').addEventListener('click',clic);
+}
+
+/* ---------- 6. duos proposés par l'appli ----------
+   Pour chaque morceau sans duo, l'appli cherche celui qui va le mieux après (tempo, tonalité, énergie).
+   Tu gardes ceux qui te plaisent (✓) ou tu les refuses (✕ : ils ne seront plus proposés). */
+let PROPOS=[];const REFUS=new Set(LS.get('bd6_refus',[]));
+function proposerDuos(annoncer){
+  const ok=SONS.filter(s=>s.meta&&s.meta.bpm&&!s.meta.erreur),usage={},L=[];
+  for(const a of ok){if(duoDe(a.id))continue;
+    const C=ok.filter(b=>b.id!=a.id&&!REFUS.has(a.id+'>'+b.id)&&!DUOS.some(d=>d.a==a.id&&d.b==b.id)).map(b=>({b,sc:scorePaire(a,b)})).filter(x=>x.sc&&x.sc.s>=.6).sort((x,y)=>y.sc.s-x.sc.s);
+    const c=C.find(x=>(usage[x.b.id]||0)<2);if(!c)continue;usage[c.b.id]=(usage[c.b.id]||0)+1;
+    L.push({id:'p:'+a.id+'>'+c.b.id,a:a.id,b:c.b.id,sc:c.sc,propose:true});
+  }
+  PROPOS=L.sort((x,y)=>y.sc.s-x.sc.s).slice(0,30);
+  if(typeof rendreDuos=='function')rendreDuos();
+  if(annoncer)toast(PROPOS.length?'🤖 '+PROPOS.length+' duo'+(PROPOS.length>1?'s':'')+' proposé'+(PROPOS.length>1?'s':'')+' : Bibliothèque → Mes duos':'Pas de nouveau duo à proposer pour l\'instant');
+}
+function garderPropose(p){
+  if(DUOS.some(d=>d.a==p.a)){if(!confirm('« '+sonDe(p.a).nom+' » a déjà un duo. Le remplacer ?'))return false;DUOS=DUOS.filter(d=>d.a!=p.a)}
+  delete p.propose;p.id='d'+Date.now().toString(36);p.cree=Date.now();delete p.sc;DUOS.push(p);sauverDuos();PROPOS=PROPOS.filter(x=>x!==p&&x.a!=p.a);rendreDuos();rendreSons();return true;
+}
+function refuserPropose(p){REFUS.add(p.a+'>'+p.b);LS.set('bd6_refus',[...REFUS]);PROPOS=PROPOS.filter(x=>x!==p);rendreDuos()}
+function htmlProposes(){
+  if(!PROPOS.length)return`<div class="row"><button data-act="proposer">🤖 Proposer des duos avec mes musiques</button></div>`;
+  return`<h3 class="ptit">🤖 Duos proposés par l'appli (${PROPOS.length}) <button data-act="proposer">Recalculer</button></h3>`+PROPOS.map(p=>{const a=sonDe(p.a),b=sonDe(p.b);if(!a||!b)return'';const av=avisDuo(a,b),pl=planDuo(p);
+    return`<div class="duo prop2" data-pr="${esc(p.id)}"><div class="dt"><span class="d0">${esc(a.nom)}</span><i>→</i><span class="d1">${esc(b.nom)}</span><span class="tag">${Math.round(p.sc.s*100)} %</span></div>
+      ${av?`<ul>${av.av.map(x=>'<li>'+esc(x)+'</li>').join('')}</ul>`:''}${pl?`<p class="cons">Meilleure transition : <b>${esc(NOMT[pl.tech])}</b> (sortie à ${fmt(pl.exit)}, entrée à ${fmt(pl.entry)})</p>`:''}
+      <div class="row"><button data-act="pvoir" class="fort">🎚 Voir les transitions</button><button data-act="pgarde">✓ Garder ce duo</button><button data-act="prefus">✕ Pas bien</button></div></div>`}).join('')+'<h3 class="ptit">♥ Mes duos</h3>';
 }

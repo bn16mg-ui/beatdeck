@@ -56,7 +56,7 @@ async function analyserTout(){
     try{await BASE.mettre(s)}catch(e){}
     ANA.fait++;rendreSons();rendreDuos();await sleep(30);
   }
-  ANA.en=false;etatBib();
+  ANA.en=false;etatBib();if(typeof AUTO!='undefined'&&AUTO.on&&a.length)proposerDuos(true);
 }
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
@@ -74,13 +74,36 @@ function deckLibre(){const L=D.filter(d=>d.a.paused);if(!L.length)return -1;cons
 /* ---------- duos : le 2e morceau se charge tout seul ---------- */
 const duoDe=id=>DUOS.find(d=>d.a==id)||null;
 function apresChargement(i){proposerDuo(i)}
+/* morceau qui colle le mieux (quand le morceau n'a pas de duo) : tempo, tonalité, énergie, sans reprendre un morceau déjà passé */
+const TEMP={},JOUES=new Set();
+setInterval(()=>D.forEach(d=>{if(!d.a.paused&&d.sonId)JOUES.add(d.sonId)}),1000);
+function scorePaire(a,b){
+  const A=a&&a.meta,B=b&&b.meta;if(!A||!B||!A.bpm||!B.bpm||A.erreur||B.erreur)return null;
+  const g=Math.abs(foldR(A.bpm,B.bpm)-1)*100,st=g<=2?1:g<=4?.85:g<=8?.6:g<=15?.3:.1;
+  let k=.5;if(A.key&&B.key){const d=Math.min((A.key.n-B.key.n+12)%12,(B.key.n-A.key.n+12)%12),m=A.key.b==B.key.b;k=d==0&&m?1:d==0||(d==1&&m)?.85:d==2&&m?.45:.15}
+  let e=.6;if(A.en&&B.en){const r=B.en/A.en;e=r>=.95&&r<=1.25?1:r>=.8&&r<=1.45?.7:.4}
+  return{s:.45*st+.35*k+.2*e,g,k,e};
+}
+function meilleurPartenaire(aId,exclure){
+  const a=sonDe(aId);let best=null;
+  for(const b of SONS){if(b.id==aId||exclure.has(b.id))continue;const sc=scorePaire(a,b);if(sc&&(!best||sc.s>best.sc.s))best={b,sc}}
+  return best;
+}
+// le partenaire d'un morceau : son duo, sinon celui choisi automatiquement
+function paireDe(id){const d=duoDe(id);if(d)return d;const t=TEMP[id];return t&&sonDe(t)?{id:'t:'+id,a:id,b:t,temp:true}:null}
 function proposerDuo(i){
-  const d=D[i],o=D[1-i];if(!d.sonId)return;const du=duoDe(d.sonId);if(!du)return;
+  const d=D[i],o=D[1-i];if(!d.sonId)return;
+  if(!duoDe(d.sonId)&&!TEMP[d.sonId]){   // pas de duo : on cherche la musique qui colle le mieux
+    const ex=new Set([...JOUES,d.sonId]);D.forEach(x=>{if(x.sonId)ex.add(x.sonId)});
+    let m=meilleurPartenaire(d.sonId,ex);if(!m)m=meilleurPartenaire(d.sonId,new Set([d.sonId]));
+    if(!m)return;TEMP[d.sonId]=m.b.id;
+  }
+  const du=paireDe(d.sonId);if(!du)return;
   if(o.sonId==du.b)return;                                   // déjà en place
   if(!o.a.paused){d.duoAttente=du.b;return}                  // l'autre deck joue : on attendra qu'il soit libre
   if(o.a.src&&!o.joue&&o.sonId){d.duoAttente=du.b;return}    // tu viens d'y charger autre chose : on ne l'écrase pas
   d.duoAttente=null;const b=sonDe(du.b);if(!b)return;
-  chargerSon(o.i,b.id).then(ok=>{if(ok)toast('♥ Duo : « '+b.nom+' » est prêt sur le deck '+(o.i+1))});
+  chargerSon(o.i,b.id).then(ok=>{if(ok)toast(du.temp?'🎯 « '+b.nom+' » est la musique qui colle le mieux : prête sur le deck '+(o.i+1):'♥ Duo : « '+b.nom+' » est prêt sur le deck '+(o.i+1))});
 }
 // si le 2e morceau attendait (l'autre deck jouait encore), on le charge dès que ce deck est libre
 setInterval(()=>{D.forEach((d,i)=>{const o=D[1-i];if(d.duoAttente&&o.a.paused&&!o.chargement&&(!o.a.src||o.joue))proposerDuo(i)})},1000);
@@ -130,13 +153,14 @@ function rendreDuos(){
       ${L.map(s=>`<button class="pick" data-pk="${esc(s.id)}">${esc(s.nom)}<small>${esc(infoSon(s))}</small></button>`).join('')||'<p class="vide">Ajoute d\'abord des musiques dans « Mes sons ».</p>'}`;
     const q2=$('duoQ');q2.oninput=()=>{C.q=q2.value;const p=q2.selectionStart;rendreDuos();const n=$('duoQ');n.focus();n.setSelectionRange(p,p)};return;
   }
-  el.innerHTML=DUOS.slice().reverse().map(d=>{const a=sonDe(d.a),b=sonDe(d.b);if(!a||!b)return'';const av=avisDuo(a,b);
+  const hp=typeof htmlProposes=='function'?htmlProposes():'';
+  el.innerHTML=hp+DUOS.slice().reverse().map(d=>{const a=sonDe(d.a),b=sonDe(d.b);if(!a||!b)return'';const av=avisDuo(a,b);
     return`<div class="duo" data-du="${d.id}"><div class="dt"><span class="d0">${esc(a.nom)}</span><i>→</i><span class="d1">${esc(b.nom)}</span></div>
       <div class="dm"><small>${esc(infoSon(a))}</small><small>${esc(infoSon(b))}</small></div>
       ${av?`<ul>${av.av.map(x=>'<li>'+esc(x)+'</li>').join('')}</ul><p class="cons">Transition conseillée : <b>${esc(av.conseil)}</b> <span class="mu">(estimation d'après l'analyse)</span></p>`:'<p class="mu">Analyse en cours…</p>'}
       ${d.trans?`<p class="valide">✓ Transition validée : <b>${esc(NOMT[d.trans.tech])}</b> · sortie à ${fmt(d.trans.exit)} · entrée à ${fmt(d.trans.entry)}</p>`:'<p class="mu">Pas encore de transition validée.</p>'}
-      <div class="row"><button data-act="prep" class="fort">🎚 Préparer la transition</button><button data-act="charge">Charger : 1er sur le deck 1, 2e sur le deck 2</button><button data-act="inv">⇄ Inverser l'ordre</button><button data-act="sup">✕ Supprimer</button></div></div>`}).join('')
-    ||'<p class="vide">Aucun duo pour l\'instant. Touche « ＋ Créer un duo », puis choisis le 1er morceau et celui qui vient après. Quand tu chargeras le 1er sur un deck, le 2e se chargera tout seul sur l\'autre.</p>';
+      <div class="row"><button data-act="prep" class="fort">🎚 Préparer la transition</button><button data-act="charge">Charger : 1er sur le deck 1, 2e sur le deck 2</button><button data-act="inv">⇄ Inverser l'ordre</button><button data-act="sup">✕ Supprimer</button></div></div>`}).join('')+(DUOS.length?'':'<p class="vide">Aucun duo gardé pour l\'instant.</p>')
+    ||hp+'<p class="vide">Aucun duo pour l\'instant. Touche « ＋ Créer un duo », puis choisis le 1er morceau et celui qui vient après. Quand tu chargeras le 1er sur un deck, le 2e se chargera tout seul sur l\'autre.</p>';
 }
 
 /* ---------- PARCOURIR, CHARGER 1 / 2 sur la platine ---------- */
@@ -175,7 +199,10 @@ async function initBib(){
       if(!ex){if(DUOS.some(d=>d.a==C.a)&&!confirm('« '+sonDe(C.a).nom+' » a déjà un duo. Le remplacer par celui-ci ?')){return}
         DUOS=DUOS.filter(d=>d.a!=C.a);DUOS.push({id:'d'+Date.now().toString(36),a:C.a,b:pk.dataset.pk,cree:Date.now()});sauverDuos();toast('♥ Duo enregistré')}
       BIB.creation=null;rendreDuos();rendreSons();return}
-    const b=e.target.closest('[data-act]'),c=e.target.closest('[data-du]');if(!b||!c)return;const d=DUOS.find(x=>x.id==c.dataset.du);if(!d)return;
+    const b=e.target.closest('[data-act]');if(b&&b.dataset.act=='proposer'){proposerDuos(true);return}
+    const pr=e.target.closest('[data-pr]');if(b&&pr){const p=PROPOS.find(x=>x.id==pr.dataset.pr);if(!p)return;
+      if(b.dataset.act=='pvoir')ouvrirPrep(p.id);else if(b.dataset.act=='pgarde'){if(garderPropose(p))toast('♥ Duo gardé')}else if(b.dataset.act=='prefus'){refuserPropose(p);toast('D\'accord, je ne le proposerai plus')}return}
+    const c=e.target.closest('[data-du]');if(!b||!c)return;const d=DUOS.find(x=>x.id==c.dataset.du);if(!d)return;
     if(b.dataset.act=='sup'){if(confirm('Supprimer ce duo ?')){DUOS=DUOS.filter(x=>x!==d);sauverDuos();rendreDuos();rendreSons()}}
     else if(b.dataset.act=='prep'){ouvrirPrep(d.id)}
     else if(b.dataset.act=='inv'){if(DUOS.some(x=>x!==d&&x.a==d.b)){toast('« '+sonDe(d.b).nom+' » a déjà son propre duo');return}[d.a,d.b]=[d.b,d.a];delete d.trans;sauverDuos();rendreDuos()}

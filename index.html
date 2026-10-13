@@ -5,7 +5,7 @@
 <title>BeatDeck</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="bd-style.css?v=6.4.0">
+<link rel="stylesheet" href="bd-style.css?v=6.6.0">
 </head><body>
 <canvas id="ciel"></canvas>
 <div id="vp"><div id="stage">
@@ -15,6 +15,7 @@
     <button id="plat" class="pill" title="Ta platine : connexion et configuration">Platine…</button>
     <span class="sp"></span>
     <span class="aide">Tiens SHIFT pour voir les raccourcis en jaune</span>
+    <button class="hb" id="bTel" title="Télécommande depuis ton téléphone">📱</button>
     <button class="hb" id="bEd" title="Choisir quel raccourci va sur quel bouton">✎ Raccourcis</button>
     <button class="hb" id="fs" title="Plein écran">⛶</button>
   </header>
@@ -49,6 +50,19 @@
 <!-- Guide « faire semblant » -->
 <div id="guide" hidden><span id="gC"></span><span id="gT"></span></div>
 
+<!-- Télécommande -->
+<div class="pan" id="telp" hidden><div class="card">
+  <div class="ch2"><h2>📱 Télécommande</h2><span class="sp"></span><button class="x">Fermer</button></div>
+  <p>Depuis ton téléphone, tu peux choisir une musique pour le deck 1 ou 2, faire passer une demande ensuite, lancer un duo, ou faire lecture / pause. Les musiques restent sur la tablette. Les deux appareils doivent avoir internet.</p>
+  <p id="telE" class="info"></p>
+  <div class="row"><button id="telOn" class="fort">Activer la télécommande</button></div>
+  <div id="telZ" hidden>
+    <p><b>Sur ton téléphone :</b> scanne ce code avec l'appareil photo, ou ouvre le lien et tape le code.</p>
+    <div class="telq"><div id="telQR"></div><div><div class="mu">Code</div><div id="telCode" class="telcode"></div><div class="mu petit" id="telLien"></div></div></div>
+    <div class="row"><button id="telNv">Nouveau code</button></div>
+  </div>
+</div></div>
+
 <!-- Ta platine -->
 <div class="pan" id="platp" hidden><div class="card">
   <div class="ch2"><h2>Ta platine</h2><span class="sp"></span><button class="x">Fermer</button></div>
@@ -75,12 +89,15 @@
   <div class="row"><button id="capB">Revenir</button><button id="capS">Passer (cette commande n'envoie rien)</button><span class="sp"></span><button id="capX">Arrêter</button></div>
 </div></div>
 
-<script src="bd-interface.js?v=6.4.0"></script>
-<script src="bd-son.js?v=6.4.0"></script>
-<script src="bd-commandes.js?v=6.4.0"></script>
-<script src="bd-raccourcis.js?v=6.4.0"></script>
-<script src="bd-bibliotheque.js?v=6.4.0"></script>
-<script src="bd-auto.js?v=6.4.0"></script>
-<script src="bd-platine.js?v=6.4.0"></script>
+<script src="peerjs.min.js"></script>
+<script src="qrcode.js"></script>
+<script src="bd-interface.js?v=6.6.0"></script>
+<script src="bd-son.js?v=6.6.0"></script>
+<script src="bd-commandes.js?v=6.6.0"></script>
+<script src="bd-raccourcis.js?v=6.6.0"></script>
+<script src="bd-bibliotheque.js?v=6.6.0"></script>
+<script src="bd-auto.js?v=6.6.0"></script>
+<script src="bd-telecommande.js?v=6.6.0"></script>
+<script src="bd-platine.js?v=6.6.0"></script>
 <script>demarrer()</script>
 </body></html>
