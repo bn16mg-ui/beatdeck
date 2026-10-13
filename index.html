@@ -3,21 +3,22 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="theme-color" content="#0b0d12"><link rel="manifest" href="beatdeck-manifest.json"><link rel="icon" href="beatdeck-192.png"><link rel="apple-touch-icon" href="beatdeck-192.png">
 <title>BeatDeck</title>
-<link rel="stylesheet" href="bd-style.css?v=5.1.0">
+<link rel="stylesheet" href="bd-style.css?v=5.2.0">
 </head><body>
 <div id="vp"><div id="stage">
   <header id="top">
     <b id="logo">BEATDECK</b><span id="st" class="pill">Platine non détectée</span><span id="prep" class="pill" hidden></span><span id="cb" class="pill">Compatibilité —</span>
     <span class="sp"></span>
     <button id="au" class="hb" title="L'IA enchaîne les morceaux à ta place">AUTO</button>
+    <button id="gu" class="hb" title="L'IA te guide pendant que tu mixes">GUIDE</button>
     <button id="stop" class="hb danger" title="Arrête tous les automatismes">■ ARRÊT</button>
     <button class="hb" data-pal="pal_temps">Temps</button><button class="hb" data-pal="pal_ia">IA</button><button class="hb" data-pal="pal_fx">Effets</button>
     <button class="hb" data-pal="rcm">Commandes</button><button class="hb" id="bLib">Morceaux</button><button class="hb" id="bStudio">Studio</button>
-    <button class="hb" id="bEdit" title="Touche une commande à l'écran pour changer sa fonction">✎</button><button class="hb" data-pal="set" title="Réglages">⚙</button><button class="hb" id="fs" title="Plein écran">⛶</button>
+    <button class="hb" id="rec" title="Enregistrer le mix">● REC</button><button class="hb" id="lock" title="Mode soirée : écran verrouillé et toujours allumé">🔒</button><button class="hb" id="bEdit" title="Touche une commande à l'écran pour changer sa fonction">✎</button><button class="hb" data-pal="set" title="Réglages">⚙</button><button class="hb" id="fs" title="Plein écran">⛶</button>
   </header>
   <div id="waves"></div>
   <div id="sx1"></div>
-  <footer id="bas"><div id="coach"></div><div id="trans"></div><div id="actif"></div></footer>
+  <footer id="bas"><div id="coach"></div><div id="note" hidden></div><div id="trans"></div><div id="actif"></div></footer>
 </div></div>
 
 <!-- Palette Temps -->
@@ -36,7 +37,8 @@
   <div class="ch2"><h2>IA</h2><span class="sp"></span><button class="x">Fermer</button></div>
   <div class="row"><button id="iaAuto">Mode AUTO</button><button id="iaNow">Mixer maintenant</button><button id="iaPlanBtn">Voir le plan prévu</button></div>
   <div id="iaPlan"></div>
-  <div class="row"><button id="iaSugg" class="on ai">Meilleurs morceaux pour celui qui joue</button></div>
+  <div class="row"><button id="iaSugg" class="on ai">Meilleurs morceaux pour celui qui joue</button><button id="iaVal">Me montrer chaque transition AUTO avant</button></div>
+  <h3>Piocher dans</h3><div class="row" id="iaBac"></div>
   <h3>Exigence sur le style des morceaux</h3><div class="row"><button data-ex="stricte">Stricte (même style uniquement)</button><button data-ex="normale">Normale</button><button data-ex="libre">Libre</button></div>
   <h3>Ambiance</h3><div class="row"><button data-amb="chill">Calme</button><button data-amb="normal">Normale</button><button data-amb="chaud">Chaude</button></div>
   <h3>Technique de transition</h3><div class="row" id="iaTech"></div>
@@ -48,6 +50,7 @@
 <div class="pan pal" id="pal_fx" hidden><div class="card wide">
   <div class="ch2"><h2>Effets</h2><span class="sp"></span><button class="x">Fermer</button></div>
   <p class="mu petit">« Essayer » joue l'effet sur le deck en cours. « Attribuer » : touche ensuite la commande de ta platine (ou à l'écran) qui doit faire cet effet. Tiens SHIFT en même temps pour l'attribuer à la combinaison SHIFT.</p>
+  <div class="row"><button id="mcB" class="on ai">Mes macros (plusieurs actions sur un seul bouton)</button></div>
   <div id="fxl"></div>
 </div></div>
 
@@ -73,6 +76,8 @@
   <input type="file" accept="audio/*" multiple id="lf" hidden><input type="file" webkitdirectory multiple id="lfd" hidden>
   <div class="row"><button id="ld_" class="on ok">Mon dossier de musique</button><button id="la">Choisir des fichiers</button></div><p class="mu" id="ls"></p>
   <h3>Duos conseillés (1 appui = deck 1 + deck 2)</h3><div id="dl"></div>
+  <div class="row"><button id="hiB">Historique de la soirée</button></div>
+  <h3>Bacs</h3><div class="row" id="bacs"></div>
   <h3>Tous les morceaux</h3><input id="q" class="inp" placeholder="Rechercher un morceau…"><div id="ll"></div>
 </div></div>
 <div class="pan" id="sugg" hidden><div class="card wide">
@@ -89,6 +94,24 @@
   <div id="st_tr" class="tabp"></div><div id="st_du" class="tabp" hidden></div><div id="st_set" class="tabp" hidden></div>
 </div></div>
 
+<!-- Macros -->
+<div class="pan" id="macros" hidden><div class="card wide">
+  <div class="ch2"><h2>Mes macros</h2><span class="sp"></span><button class="x">Fermer</button></div>
+  <div class="row"><select class="sel" id="mcSel"></select><button id="mcNew">Nouvelle</button><button id="mcRen">Renommer</button><button id="mcDel">Supprimer</button></div>
+  <div class="row"><button id="mcTry" class="on ok">Lancer</button><button id="mcAsg" class="on ai">Attribuer à une commande</button><button id="mcIA">L'IA propose une macro pour les 2 morceaux chargés</button></div>
+  <div id="mcE"></div>
+</div></div>
+<!-- Aperçu avant transition AUTO -->
+<div class="pan pal" id="apercu" hidden><div class="card">
+  <div class="ch2"><h2>Transition prévue</h2><span class="sp"></span></div>
+  <p id="apI" class="info"></p><canvas id="apC" class="tl" style="height:90px"></canvas><div id="apL"></div>
+  <div class="row"><button id="apOk" class="on ok">Valider</button><button id="apAlt">Autre technique</button><button id="apNo">Repousser de 32 temps</button></div>
+</div></div>
+<!-- Historique -->
+<div class="pan" id="hist" hidden><div class="card wide">
+  <div class="ch2"><h2>Historique de la soirée</h2><span class="sp"></span><button class="x">Fermer</button></div>
+  <div class="row"><button id="hiX">Copier la liste</button><button id="hiC">Effacer</button></div><div id="hiL"></div>
+</div></div>
 <!-- Réglages -->
 <div class="pan" id="set" hidden><div class="card">
   <div class="ch2"><h2>Réglages</h2><span class="sp"></span><button class="x">Fermer</button></div>
@@ -136,14 +159,15 @@
 <div id="learn" class="bandeau" hidden><div class="card"><h2 id="lnT"></h2><p>Touche maintenant la commande de ta platine (ou à l'écran) qui doit faire cet effet. Tiens SHIFT en même temps pour l'attribuer à la combinaison SHIFT.</p><div class="row"><span class="sp"></span><button id="lnQ">Annuler</button></div></div></div>
 
 <div id="toast"></div>
-<script src="bd-core.js?v=5.1.0"></script>
-<script src="bd-audio.js?v=5.1.0"></script>
-<script src="bd-analyse.js?v=5.1.0"></script>
-<script src="bd-fonctions.js?v=5.1.0"></script>
-<script src="bd-midi.js?v=5.1.0"></script>
-<script src="bd-bib.js?v=5.1.0"></script>
-<script src="bd-auto.js?v=5.1.0"></script>
-<script src="bd-studio.js?v=5.1.0"></script>
-<script src="bd-ui.js?v=5.1.0"></script>
-<script src="bd-app.js?v=5.1.0"></script>
+<script src="bd-core.js?v=5.2.0"></script>
+<script src="bd-audio.js?v=5.2.0"></script>
+<script src="bd-analyse.js?v=5.2.0"></script>
+<script src="bd-fonctions.js?v=5.2.0"></script>
+<script src="bd-midi.js?v=5.2.0"></script>
+<script src="bd-bib.js?v=5.2.0"></script>
+<script src="bd-auto.js?v=5.2.0"></script>
+<script src="bd-studio.js?v=5.2.0"></script>
+<script src="bd-ui.js?v=5.2.0"></script>
+<script src="bd-plus.js?v=5.2.0"></script>
+<script src="bd-app.js?v=5.2.0"></script>
 </body></html>

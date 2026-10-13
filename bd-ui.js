@@ -5,7 +5,7 @@ const UIV={};   // dernière valeur affichée des potentiomètres
 
 /* ---------- construction de la platine ---------- */
 function buildStage(){
-  $('waves').innerHTML=[0,1].map(i=>`<div class="wr" style="--c:${COL[i]}"><div class="wi"><div class="t1"><b>DECK ${i+1}</b><span class="nm" id="wn${i}">Aucun morceau</span></div><div class="t2" id="wt${i}"></div></div><div class="wc"><canvas id="w${i}"></canvas><span class="tag" id="wg${i}" hidden></span></div></div>`).join('');
+  $('waves').innerHTML=[0,1].map(i=>`<div class="wr" style="--c:${COL[i]}"><div class="wi"><div class="t1"><b>DECK ${i+1}</b><span class="nm" id="wn${i}">Aucun morceau</span></div><div class="t2" id="wt${i}"></div></div><button class="tapb" data-tap="${i}" title="Tape en rythme pour corriger le tempo">TAP</button><div class="wc"><canvas id="w${i}"></canvas><span class="tag" id="wg${i}" hidden></span></div></div>`).join('');
   const S=$('sx1');let h='';
   h+=`<div class="plate" style="left:40px;top:330px;width:850px;height:760px"></div><div class="plate" style="left:1310px;top:330px;width:850px;height:760px"></div><div class="plate mx" style="left:878px;top:338px;width:444px;height:744px"></div>`;
   h+=`<div class="deco brand" style="left:1100px;top:930px;transform:translateX(-50%);font-size:20px">⟆ The Next Beat</div><div class="deco" style="left:330px;top:1050px">+ SEARCH −</div><div class="deco" style="left:1760px;top:1050px">+ SEARCH −</div><div class="deco" style="left:100px;top:360px">MASTER TEMPO</div><div class="deco" style="left:1905px;top:360px">MASTER TEMPO</div>`;
@@ -185,6 +185,8 @@ function renderIA(){
   $('iaAuto').classList.toggle('on',AUTO.on);$('iaAuto').classList.add('ai');
   $('iaTech').innerHTML=TECHS.map(([k,n])=>`<button data-k="${k}"${PREF.ft==k?' class="on ai"':''}>${n}</button>`).join('');
   QA('#pal_ia [data-amb]').forEach(b=>{b.classList.toggle('on',b.dataset.amb==PREF.amb);b.classList.add('ai')});
+  $('iaVal').classList.toggle('on',!!PREF.valider);$('iaVal').classList.add('ok');
+  $('iaBac').innerHTML=`<button data-bc=""${!PREF.bac?' class="on ai"':''}>Toute ma musique</button>`+Object.keys(BACS).map(n=>`<button data-bc="${esc(n)}"${PREF.bac==n?' class="on ai"':''}>${esc(n)}</button>`).join('')+(Object.keys(BACS).length?'':'<small class="mu">Crée des bacs dans Morceaux (bouton « Bac » sur chaque morceau).</small>');
   QA('#pal_ia [data-ex]').forEach(b=>{b.classList.toggle('on',b.dataset.ex==(PREF.ex||'stricte'));b.classList.add('ai')});
   [['iaAp','ap'],['iaDa','da'],['iaFx','fx'],['iaAf','af']].forEach(([id,k])=>{$(id).classList.toggle('on',!!PREF[k]);$(id).classList.add('ok')});
 }
@@ -203,6 +205,8 @@ function initIA(){
   $('iaNow').onclick=()=>{if(AUTO.on){AUTO.mixNow=1;toast('Mix lancé')}else aiMix(true)};
   $('iaPlanBtn').onclick=iaPlan;
   $('iaSugg').onclick=()=>openSugg(live());
+  $('iaVal').onclick=()=>{PREF.valider=!PREF.valider;savePref();renderIA();toast(PREF.valider?'Je te montrerai chaque transition AUTO avant de la lancer':'Les transitions AUTO partent sans attendre')};
+  $('iaBac').onclick=e=>{const b=e.target.closest('button');if(!b)return;PREF.bac=b.dataset.bc;savePref();renderIA();D.forEach(d=>{if(d.a.paused&&d.cur&&AUTO.on)d.done=1});toast(PREF.bac?'Je pioche seulement dans « '+PREF.bac+' »':'Je pioche dans toute ta musique')};
   QA('#pal_ia [data-ex]').forEach(b=>b.onclick=()=>{PREF.ex=b.dataset.ex;savePref();renderIA();D.forEach(d=>{if(d.a.paused&&d.cur&&!d.done&&AUTO.on)d.done=1});toast('Exigence : '+b.textContent)});
   $('iaTech').onclick=e=>{const b=e.target.closest('button');if(!b)return;PREF.ft=b.dataset.k;savePref();D.forEach(d=>d.plan=null);renderIA();toast('Technique : '+b.textContent)};
   QA('#pal_ia [data-amb]').forEach(b=>b.onclick=()=>{const k=b.dataset.amb,[m,t,i,d]=AMB[k];Object.assign(PREF,{amb:k,mt:m,tb:t,si:i,da:d});savePref();D.forEach(x=>x.plan=null);renderIA();toast('Ambiance '+b.textContent.toLowerCase()+' : '+lblDur(String(m))+' par morceau, transition '+t+' temps'+(d?', drop automatique':''))});
@@ -242,8 +246,8 @@ function openParams(fnId){
 }
 function paramsHtml(f,p){
   if(!f.p.length)return'<p class="mu petit">Cette fonction n\'a pas de réglage.</p>';
-  return'<div class="fld">'+f.p.map(([k,n,def,o])=>{const v=p[k]??def;
-    return`<label>${esc(n)}</label>`+(o&&o.o?`<select class="sel" data-pk="${k}">${o.o.map(([ov,ol])=>`<option value="${ov}"${String(ov)==String(v)?' selected':''}>${esc(ol)}</option>`).join('')}</select>`:`<input class="inp" type="number" data-pk="${k}" value="${v}" min="${o.min}" max="${o.max}" step="${o.pas}">`)}).join('')+'</div>';
+  return'<div class="fld">'+f.p.map(([k,n,def,o])=>{const v=p[k]??def,oo=o&&o.dyn=='macros'?(PROF.macros||[]).map(m=>[m.id,m.nom]):o&&o.o;
+    return`<label>${esc(n)}</label>`+(oo?`<select class="sel" data-pk="${k}">${(oo.length?oo:[['','(aucune : crée-en dans Effets → Mes macros)']]).map(([ov,ol])=>`<option value="${ov}"${String(ov)==String(v)?' selected':''}>${esc(ol)}</option>`).join('')}</select>`:`<input class="inp" type="number" data-pk="${k}" value="${v}" min="${o.min}" max="${o.max}" step="${o.pas}">`)}).join('')+'</div>';
 }
 function readParams(f,p){QA('#pkForm [data-pk]').forEach(i=>{const d=f.p.find(x=>x[0]==i.dataset.pk);if(!d)return;let v=i.value;if(typeof d[2]=='number'){v=+String(v).replace(',','.');if(!isFinite(v))v=d[2];if(d[3]&&d[3].min!=null)v=clamp(v,d[3].min,d[3].max)}p[d[0]]=v})}
 

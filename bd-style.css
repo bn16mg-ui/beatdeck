@@ -126,3 +126,15 @@ input[type=range].rg{width:100%;accent-color:#ffc24b}
 #toast{position:fixed;top:12px;left:50%;transform:translateX(-50%);background:#1b212b;border:1px solid var(--ln);border-radius:20px;padding:9px 18px;opacity:0;transition:opacity .25s;pointer-events:none;z-index:40;max-width:92vw;text-align:center}
 #toast.on{opacity:1}#toast.err{border-color:var(--bad);color:#ffc5c9}
 .bandeau.haut{bottom:auto;top:10px}
+
+.pill{max-width:300px}
+.hb{padding:10px 14px}
+#gu.on{--c:var(--ok)}#rec.on{background:var(--bad);color:#fff;border-color:transparent}#lock.on{--c:var(--ai)}
+.wi{position:relative}.tapb{position:absolute;right:10px;top:10px;font-size:14px;padding:4px 10px;border-radius:8px;color:var(--mu)}
+.jog.alerte .ring{animation:al .5s infinite alternate}@keyframes al{to{background:conic-gradient(var(--bad) 360deg,var(--bad) 0);box-shadow:0 0 40px var(--bad)}}
+body.verrou #sx1{pointer-events:none}body.verrou #sx1 .ctl{pointer-events:none}
+#coach.guide{color:var(--tx);border-color:var(--ok);font-size:24px}
+#coach.now{background:#4be39a33;border-color:var(--ok);animation:fl .4s}
+#note{position:absolute;right:312px;top:0;width:520px;height:88px;display:flex;align-items:center;gap:14px;padding:0 18px;border:1px solid var(--ai);border-radius:16px;background:#1b212b;font-weight:700;z-index:2}
+#note button{font-size:30px;padding:4px 18px}
+.mstep{flex-wrap:wrap}.mstep .sel{flex:1;min-width:180px;width:auto}

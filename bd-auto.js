@@ -1,6 +1,6 @@
 'use strict';
 /* ===== BeatDeck 5 · IA de mix : plans, transitions, mode AUTO ===== */
-const PREF_DEF={ex:'stricte',mt:90,tm:'musical',tb:16,si:false,da:false,fx:true,ap:true,amb:'normal',ft:'',af:true,anaLive:false};
+const PREF_DEF={valider:false,bac:'',ex:'stricte',mt:90,tm:'musical',tb:16,si:false,da:false,fx:true,ap:true,amb:'normal',ft:'',af:true,anaLive:false};
 let PREF=Object.assign({},PREF_DEF);
 let savePref=()=>{};
 const AUTO={on:false,queue:[],played:new Set(),lastQ:false,mixNow:0,plan:[],rafale:0,fromDeck:0,SETP:{},info:null};
@@ -58,7 +58,7 @@ function chain(kind,entry,L0){
     if(PREF.fx&&['roll','spin','stutter'].includes(kind))j.frame(()=>{const k=Math.min(1,(performance.now()-t0)/tot);o.ov.flt=.5+.28*k;applyDeck(o);return k<1});
     j.later(()=>{
       restore();n.ov={};applyDeck(n);n.a.currentTime=e;n.a.play().catch(()=>{});G.xf=N;mix();
-      o.a.pause();o.done=1;if(PREF.fx)sfx('impact');j.end();
+      o.a.pause();o.done=1;if(PREF.fx)sfx('impact');j.end();apresTransition(L,N,KN[kind]);
     },Math.max(0,tot-LEAD*1000));
   },wait);
   return true;
@@ -73,7 +73,7 @@ function mixFondu(beats){
   j.onStop(()=>{delete o.ov.flt;delete n.ov.flt;applyDeck(o);applyDeck(n)});
   j.frame(()=>{const p=Math.min(1,(performance.now()-t0)/dur);G.xf=x0+(to-x0)*p;
     if(PREF.fx){o.ov.flt=.5+.3*p;n.ov.flt=.5-.22*(1-p)}mix();
-    if(p>=1){o.a.pause();o.done=1;j.end();return false}});
+    if(p>=1){o.a.pause();o.done=1;j.end();apresTransition(1-to,to,'Fondu');return false}});
   return true;
 }
 
@@ -141,7 +141,7 @@ function runLive(P){
   if(transitionEnCours())return false;const L=live();AUTO.fromDeck=L;
   const j=new Job('Transition : '+planTxt(P),{cle:'transition',auto:true});
   j.onStop(st=>{if(st){D.forEach(d=>{d.ov={};applyDeck(d);setMute(d,0);if(d.lp)killLoop(d)})}});
-  if(!runPlan(liveEngine(j),P,()=>j.end())){j.stop();return false}return true;
+  if(!runPlan(liveEngine(j),P,()=>{j.end();apresTransition(L,1-L,planTxt(P))})){j.stop();return false}return true;
 }
 function aiMix(man){
   if(transitionEnCours()){toast('Une transition est déjà en cours');return false}
@@ -199,6 +199,7 @@ async function autoTick(){
       AUTO.info={dl:o.dl,exit:P0&&P0.exit,deck:L};
       if(P0&&P0.exit!=null&&P0.exit>o.a.currentTime+2&&!P0.limited)o.dl=P0.exit}
     const tx=AUTO.mixNow?0:Math.min(tl(o)-dur-14,o.dl-o.a.currentTime);
+    if(PREF.valider&&!AUTO.mixNow&&o.valideN!==n.cur&&o.plan){if(tx<=20)ouvrirApercu(L);if(tx<=2.5){o.dl=o.a.currentTime+32*beatLen(o);o.plan=null;coach('J\'attends ta validation : je prolonge de 32 temps');return}}
     if(AUTO.mixNow||tx<=2.5){const man=AUTO.mixNow;AUTO.mixNow=0;coach('Mix imminent…');const j=new Job('Mix programmé',{cle:'auto-arm',auto:true});
       j.later(()=>{j.end();startMix(L,man)},Math.max(0,tx/rateOf(o)-.04)*1000);return}
     coach(tx>25?'Prochain : '+n.name+' (deck '+(N+1)+') · mix dans '+fmt(Math.round(tx))+(o.plan?' · '+planTxt(o.plan):'')+qn:'Mix dans '+Math.round(tx)+' s'+qn);

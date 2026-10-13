@@ -223,14 +223,14 @@ async function chargerDeck(i,it,force){
   [...JOBS].forEach(j=>{if(j.deck===i)j.stop()});
   killLoop(d);d.a.pause();if(d.url)URL.revokeObjectURL(d.url);
   d.url=URL.createObjectURL(it.f);d.a.src=d.url;
-  Object.assign(d,{cur:it,done:0,name:it.name,buf:null,pk:null,bpm:0,off:0,grid:false,r:null,key:null,norm:1,cue:0,hc:[null,null,null],rate:1,rateMul:1,nudge:1,syncLock:false,loading:true,dl:null,plan:null,planN:null,fromQ:false,loopLen:4,ov:{},autoV:1});
+  Object.assign(d,{cur:it,done:0,name:it.name,buf:null,pk:null,bpm:0,off:0,grid:false,r:null,key:null,norm:1,cue:0,hc:[null,null,null],rate:1,rateMul:1,nudge:1,syncLock:false,loading:true,logged:false,valideN:null,dl:null,plan:null,planN:null,fromQ:false,loopLen:4,ov:{},autoV:1});
   applyRate(d);
   try{
     const buf=await AC.decodeAudioData(await it.f.arrayBuffer());
     if(d.cur!==it)return false;
     d.buf=buf;d.pk=peaks(buf);
     let r=it.r&&it.r.v>=ANA_V?it.r:null;
-    if(!r){r=analyseBuf(buf);it.r=slim(r);sauverMeta(it)}else r=it.r;
+    if(!r){r=analyseBuf(buf);it.r=corrOf(it.id,slim(r));sauverMeta(it)}r=it.r;
     d.r=r;d.bpm=r.bpm||0;d.off=r.off||0;d.key=r.key;d.norm=r.norm||1;d.grid=d.bpm>0;
     if(r.dr&&r.dr[0])d.hc[0]=r.dr[0][0];if(r.dr&&r.dr[1])d.hc[1]=r.dr[1][0];if(r.ex)d.hc[2]=r.ex;
   }catch(e){console.error(e);toast('Impossible d\'analyser « '+it.name+' » : lecture possible, mais sans tempo','err')}

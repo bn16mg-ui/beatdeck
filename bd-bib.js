@@ -29,13 +29,13 @@ async function readTags(f){
 async function analyseFile(f){const buf=await AC.decodeAudioData(await f.arrayBuffer());const r=slim(analyseBuf(buf));r.tg=await readTags(f);return r}
 async function addFiles(fs){
   let n0=lib.length;
-  for(const f of fs){if(!AUD.test(f.name))continue;const id=kid(f);if(lib.some(x=>x.id==id))continue;const m=META[id];lib.push({id,name:f.name.replace(/\.[^.]+$/,''),f,r:m&&m.v>=ANA_V?m:null})}
+  for(const f of fs){if(!AUD.test(f.name))continue;const id=kid(f);if(lib.some(x=>x.id==id))continue;const m=META[id];lib.push({id,name:f.name.replace(/\.[^.]+$/,''),f,r:m&&m.v>=ANA_V?corrOf(id,m):null})}
   if(lib.length==n0&&!fs.length)return;
   renderLib();prepStatus();if(anaBusy)return;anaBusy=1;let n=0;
   for(const it of lib)if(!it.r){
     while(D.some(d=>!d.a.paused)&&!PREF.anaLive)await sleep(3000);
     $('ls').textContent='Analyse : '+lib.filter(x=>x.r).length+'/'+lib.length+' (tu peux déjà charger les morceaux analysés)';
-    try{it.r=await analyseFile(it.f)}catch(x){it.r={v:ANA_V,bpm:0,off:0,norm:1,err:1}}
+    try{it.r=corrOf(it.id,await analyseFile(it.f))}catch(x){it.r={v:ANA_V,bpm:0,off:0,norm:1,err:1}}
     sauverMeta(it);prepStatus();if(++n%4==0)renderLib();
   }
   anaBusy=0;renderLib();prepStatus();$('ls').textContent=lib.length+' morceaux prêts';
@@ -55,11 +55,11 @@ async function relireDossier(){
 
 /* --- Liste --- */
 function renderLib(){
-  refreshLib();const el=$('ll');if(!el)return;
+  refreshLib();renderBacs();const el=$('ll');if(!el)return;
   const rd=D.find(d=>!d.a.paused&&d.bpm)||D[live()],cr=rd?recOf(rd):null,q=libQ.toLowerCase();
-  LV=lib.map((it,k)=>({it,k,s:cr&&it.r&&it.r.bpm?pairScore(cr,it.r).total:0})).filter(x=>x.it.name.toLowerCase().includes(q)).sort((a,b)=>b.s-a.s||a.it.name.localeCompare(b.it.name));
+  LV=lib.map((it,k)=>({it,k,s:cr&&it.r&&it.r.bpm?pairScore(cr,it.r).total:0})).filter(x=>x.it.name.toLowerCase().includes(q)&&(!LIBBAC||(BACS[LIBBAC]||[]).includes(x.it.id))).sort((a,b)=>b.s-a.s||a.it.name.localeCompare(b.it.name));
   navI=clamp(navI,0,Math.max(0,LV.length-1));
-  el.innerHTML=LV.map(({it,k,s},i)=>{const r=it.r;return`<div class="lr${i==navI?' sel1':''}"><button class="nm" data-l="${k}" data-d="a">${s>.7?'✓ ':''}${esc(it.name)}</button><small>${r?(r.bpm?Math.round(r.bpm)+(r.bc<.3?'?':'')+' · '+cm(r.key)+' · '+(r.rf?RFC[r.rf]+' · ':'')+'N'+lvl(r)+(r.gf?' · '+GFN[r.gf]:''):'tempo ?'):'…'}</small><button data-l="${k}" data-d="0" class="d0">1</button><button data-l="${k}" data-d="1" class="d1">2</button><button data-l="${k}" data-d="n" title="Ajouter à la file">»</button><button data-tk="${k}" title="Détails">⋯</button></div>`}).join('')||'<p class="mu">Touche « Mon dossier de musique » pour commencer.</p>';
+  el.innerHTML=LV.map(({it,k,s},i)=>{const r=it.r;return`<div class="lr${i==navI?' sel1':''}"><button class="nm" data-l="${k}" data-d="a">${s>.7?'✓ ':''}${esc(it.name)}</button><small>${r?(r.bpm?Math.round(r.bpm)+(r.bc<.3?'?':'')+' · '+cm(r.key)+' · '+(r.rf?RFC[r.rf]+' · ':'')+'N'+lvl(r)+(r.gf?' · '+GFN[r.gf]:''):'tempo ?'):'…'}</small><button data-l="${k}" data-d="0" class="d0">1</button><button data-l="${k}" data-d="1" class="d1">2</button><button data-l="${k}" data-d="n" title="Ajouter à la file">»</button><button data-bac="${k}" title="Ranger dans un bac">Bac</button><button data-tk="${k}" title="Détails et corrections">⋯</button></div>`}).join('')||'<p class="mu">Touche « Mon dossier de musique » pour commencer.</p>';
   const A=lib.filter(x=>x.r&&x.r.bpm&&x.r.v>=ANA_V).slice(0,120),T=[];
   for(let i=0;i<A.length;i++)for(let j=i+1;j<A.length;j++){const s=pairScore(A[i].r,A[j].r).total;if(T.length<40||s>T[39][0]){T.push([s,A[i],A[j]]);T.sort((a,b)=>b[0]-a[0]);if(T.length>40)T.pop()}}
   const used=new Set(),Z=T.filter(p=>!used.has(p[1])&&!used.has(p[2])&&used.add(p[1]).add(p[2])).slice(0,5);
@@ -68,6 +68,7 @@ function renderLib(){
 function libClick(e){
   const b=e.target.closest('button');if(!b)return;
   if(b.dataset.tk){showTrk(+b.dataset.tk);return}
+  if(b.dataset.bac){choisirBac(lib[+b.dataset.bac]);return}
   if(b.dataset.p){if(D.some(d=>!d.a.paused)){toast('Mets les deux decks en pause d\'abord');return}const[x,y]=b.dataset.p.split(',').map(Number);chargerDeck(0,lib[x]);chargerDeck(1,lib[y]);closePanels();return}
   if(b.dataset.l){const it=lib[+b.dataset.l];let d=b.dataset.d;
     if(d=='n'){AUTO.queue.push(it);toast('File d\'attente ('+AUTO.queue.length+') : '+it.name);return}
@@ -90,7 +91,20 @@ function showTrk(k){
     <h3>Structure estimée d'après l'énergie</h3><p>${S?S.map(s=>SECN[s.k]+' '+fmt(s.t0)).join(' · '):'Analyse trop courte'}</p>
     <h3>Pas encore disponible</h3><ul class="pl"><li>Paroles et voix : pas de reconnaissance vocale pour l'instant. Seuls les médiums sont mesurés pour estimer les voix qui se chevauchent.</li><li>Genre : lu dans les informations du fichier (${esc(t.g||'aucune')}) ou choisi ci-dessous.</li></ul>
     <h3>Genre (pour éviter les enchaînements incohérents)</h3><div class="chips" id="trkg">${[['','Auto (fichier)']].concat(GFAM.map(g=>[g[0],g[1]])).map(([v,n])=>`<button class="chip${(GENU[it.id]||'')==v?' a':''}" data-g="${v}">${n}</button>`).join('')}</div><p class="mu">Genre retenu : ${GFN[famOf(r,it.id)]||'inconnu'}</p>`}
+  if(r&&r.bpm){const kopts=[];for(let n=1;n<=12;n++)for(const b of[false,true])kopts.push([n+(b?'B':'A'),n,b]);const dk=D.find(d=>d.cur===it);
+    h+=`<h3>Corriger l'analyse</h3><p class="mu petit">Si l'appli s'est trompée, corrige ici : ta correction est gardée et utilisée partout.</p>
+    <div class="fld"><label>Tempo (BPM)</label><div class="row" style="margin:0"><input class="inp" id="crB" type="number" step=".1" min="60" max="200" value="${r.bpm}" style="width:100px"><button id="crX2">×2</button><button id="crD2">÷2</button></div>
+    <label>Tonalité</label><select class="sel" id="crK">${kopts.map(([l,n,b])=>`<option value="${l}"${r.key&&r.key.n==n&&r.key.b==b?' selected':''}>${l}</option>`).join('')}</select>
+    <label>Famille de rythme</label><select class="sel" id="crR">${Object.keys(RFN).map(k=>`<option value="${k}"${r.rf==k?' selected':''}>${RFN[k]}</option>`).join('')}</select></div>
+    <div class="row"><button id="crOk" class="on ok">Enregistrer la correction</button>${CORR[it.id]?'<button id="crNo">Revenir à l\'analyse automatique</button>':''}${dk&&!dk.a.paused?'<button id="crG">Caler la grille : touche pile sur un temps fort</button>':''}</div>`}
   $('trkb').innerHTML=h;openPanel('trk',true);
+  if($('crOk')){
+    $('crX2').onclick=()=>{$('crB').value=Math.round(+$('crB').value*20)/10};$('crD2').onclick=()=>{$('crB').value=Math.round(+$('crB').value*5)/10};
+    $('crOk').onclick=()=>{const bpm=+String($('crB').value).replace(',','.'),kv=$('crK').value,c={};if(bpm>=40&&bpm<=250&&Math.abs(bpm-r.bpm)>.05)c.bpm=bpm;
+      const kn=parseInt(kv),kb=kv.endsWith('B');if(!r.key||r.key.n!=kn||r.key.b!=kb)c.key={n:kn,b:kb,c:1};if($('crR').value!=r.rf){c.rf=$('crR').value;c.rfc=1}
+      if(!Object.keys(c).length){toast('Rien n\'a changé');return}sauverCorr(it,c);toast('Correction enregistrée');showTrk(k)};
+    if($('crNo'))$('crNo').onclick=()=>{$('trk').hidden=true;annulerCorr(it)};
+    if($('crG'))$('crG').onclick=()=>{const d=D.find(x=>x.cur===it);if(!d)return;const beat=beatLen(d),off=((heard(d)%beat)+beat)%beat;d.off=off;sauverCorr(it,{off});toast('Grille recalée sur ton appui')}}
   const g=$('trkg');if(g)g.onclick=e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.g)GENU[it.id]=b.dataset.g;else delete GENU[it.id];LS.set('bd_gen',GENU);renderLib();showTrk(k)};
 }
 /* ===== choix du morceau suivant : style du son, tempo, tonalité, énergie =====
@@ -100,7 +114,7 @@ function noterRefus(a,b){if(!a||!b)return;const k=a+'>'+b;REFUS[k]=(REFUS[k]||0)
 const SEUILS={stricte:{t:.6,te:.55,so:.55},normale:{t:.48,te:.4,so:.45},libre:{t:0,te:0,so:0}};
 function classer(ref,refId){
   refreshLib();
-  return lib.filter(it=>it.r&&it.r.bpm&&it.id!==refId).map(it=>{const sc=ref?pairScore(ref,it.r):null;let s=sc?sc.total:Math.random();
+  return lib.filter(it=>it.r&&it.r.bpm&&it.id!==refId&&dansBac(it)).map(it=>{const sc=ref?pairScore(ref,it.r):null;let s=sc?sc.total:Math.random();const lk=refId&&LIKES[refId+'>'+it.id];if(lk&&sc)s+=.06*Math.min(3,lk);
     const rf=refId&&REFUS[refId+'>'+it.id];if(rf)s-=.25*Math.min(2,rf);return{it,sc,s,refus:rf||0}}).sort((a,b)=>b.s-a.s);
 }
 function passe(x,niv){const S=SEUILS[niv]||SEUILS.stricte,sc=x.sc;if(!sc)return true;return x.s>=S.t&&sc.tempo>=S.te&&(sc.son==null||sc.son>=S.so)&&!(niv!='libre'&&sc.conflit)}
