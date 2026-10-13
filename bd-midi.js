@@ -115,13 +115,13 @@ setInterval(()=>{
 
 /* ===== Capture guidée : la platine apprend toute seule ce que chaque commande envoie ===== */
 const CAPMSG={b:'Appuie une fois sur',pot:'Tourne doucement de gauche à droite',fader:'Fais glisser d\'un bout à l\'autre',jog:'Tourne la molette (sans appuyer dessus si possible)',enc:'Tourne'};
-function capStart(from){
-  closePanels();MIDI.cap={i:from||0,buf:[],tm:0,ign:0,shiftTest:false,shiftDown:false};capShow();
+function capStart(from,single){
+  closePanels();MIDI.cap={i:from||0,buf:[],tm:0,ign:0,shiftTest:false,shiftDown:false,single:!!single};capShow();
 }
 function capStop(msg){MIDI.cap=null;$('cap').hidden=true;QA('.hl').forEach(e=>e.classList.remove('hl'));saveMidi();refreshStage();if(msg)toast(msg)}
 function capShow(){
   const C=MIDI.cap;if(!C)return;QA('.hl').forEach(e=>e.classList.remove('hl'));$('cap').hidden=false;
-  if(C.i>=CAP_ORDER.length){capShiftStep();return}
+  if(C.i>=CAP_ORDER.length||(C.single&&C.i!=C.i0&&C.i0!=null)){if(C.single){capStop();return}capShiftStep();return}
   const id=CAP_ORDER[C.i],p=PH[id],cur=MIDI.map.phys[id];
   const el=Q('[data-ph="'+id+'"]');if(el)el.classList.add('hl');$('cap').classList.toggle('haut',p.y>780&&p.x>500&&p.x<1700);
   $('capN').textContent='Étape '+(C.i+1)+' sur '+CAP_ORDER.length+' · '+(p.deck==null?'Centre':'Deck '+SIDE[p.deck]);
@@ -162,9 +162,11 @@ function capDecide(){
   }
   if(!res){$('capR').textContent=(warn||'Rien de clair reçu.')+' Recommence.';C.ign=performance.now()+300;return}
   // retire ce message d'une autre commande s'il y était
-  for(const o in MIDI.map.phys){const x=MIDI.map.phys[o];if(o!=id&&x&&(x.k==res.k||x.touch==res.k))delete MIDI.map.phys[o]}
+  const pris=[];for(const o in MIDI.map.phys){const x=MIDI.map.phys[o];if(o!=id&&x&&(x.k==res.k||x.touch==res.k)){delete MIDI.map.phys[o];pris.push(PH[o].nom)}}
+  if(pris.length)toast('Ce message était attribué à « '+pris[0]+' » : retiré de cette commande. Réapprends-la si besoin.','err');
   MIDI.map.phys[id]=Object.assign({kind:p.kind},res);(C.done=C.done||new Set()).add(id);midiIndex();
   $('capR').textContent='✓ '+physLabel(res.k)+(res.enc?' · molette type '+res.enc:'');
+  if(C.single){setTimeout(()=>{if(MIDI.cap===C)capStop(p.nom+' : réapprise')},500);return}
   C.ign=performance.now()+450;setTimeout(()=>{if(MIDI.cap===C){C.i++;capShow()}},350);
 }
 function capShiftStep(){

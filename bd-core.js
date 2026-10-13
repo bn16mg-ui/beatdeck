@@ -1,6 +1,6 @@
 'use strict';
 /* ===== BeatDeck 5 · outils communs ===== */
-const VERSION='5.0.0';
+const VERSION='5.0.1';
 const $=id=>document.getElementById(id),Q=(s,r=document)=>r.querySelector(s),QA=(s,r=document)=>[...r.querySelectorAll(s)];
 const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v)),lerp=(a,b,t)=>a+(b-a)*t,smth=(a,b,x)=>{const t=clamp((x-a)/(b-a));return t*t*(3-2*t)};
 const med=a=>{const s=[...a].sort((x,y)=>x-y);return s[s.length>>1]||0};

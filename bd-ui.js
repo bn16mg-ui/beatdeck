@@ -265,8 +265,8 @@ function initRc(){
   $('rcReset').onclick=()=>{if(!confirm('Remettre toutes les commandes de ce profil sur leurs fonctions d\'origine ?'))return;PROF.assign=JSON.parse(JSON.stringify(DEF_ASSIGN));PROF.inv={};saveProf();refreshStage();renderRc();toast('Commandes remises par défaut')};
   $('capB').onclick=()=>{const C=MIDI.cap;if(!C)return;clearTimeout(C.tm);C.tm=0;C.buf=[];C.shiftTest=false;C.i=Math.max(0,C.i-1);capShow()};
   $('capRe').onclick=()=>{const C=MIDI.cap;if(!C)return;clearTimeout(C.tm);C.tm=0;C.buf=[];capShow()};
-  $('capSk').onclick=()=>{const C=MIDI.cap;if(!C)return;clearTimeout(C.tm);C.tm=0;C.buf=[];if(C.shiftTest){capStop('Configuration terminée');return}C.i++;capShow()};
-  $('capNone').onclick=()=>{const C=MIDI.cap;if(!C||C.shiftTest)return;clearTimeout(C.tm);C.tm=0;C.buf=[];MIDI.map.phys[CAP_ORDER[C.i]]={none:true};C.i++;capShow()};
+  $('capSk').onclick=()=>{const C=MIDI.cap;if(!C)return;clearTimeout(C.tm);C.tm=0;C.buf=[];if(C.shiftTest||C.single){capStop('Configuration terminée');return}C.i++;capShow()};
+  $('capNone').onclick=()=>{const C=MIDI.cap;if(!C||C.shiftTest)return;clearTimeout(C.tm);C.tm=0;C.buf=[];MIDI.map.phys[CAP_ORDER[C.i]]={none:true};if(C.single){capStop('Enregistré : n\'envoie rien');return}C.i++;capShow()};
   $('capQ').onclick=()=>capStop('Configuration arrêtée : ce qui a été capturé est gardé');
 }
 /* éditeur d'une commande */
@@ -278,6 +278,7 @@ function openEditor(id,layer){
   $('pkT').textContent=p.nom+(layer=='shift'?' · avec SHIFT':'');$('pkQ').hidden=false;$('pkQ').value='';
   const m=MIDI.map.phys[id];
   $('pkSub').textContent='Type : '+({b:'bouton',pot:'potentiomètre',fader:'curseur',jog:'molette',enc:'bouton rotatif'}[p.kind])+' · imprimé sur la platine : « '+p.impr+' » · '+(m?(m.none?'n\'envoie rien':physLabel(m.k)):'pas encore configurée');
+  $('pkSub').innerHTML=esc($('pkSub').textContent)+' · <button id="edRe" class="on ai">Réapprendre cette commande</button>';$('edRe').onclick=()=>{$('pick').hidden=true;$('rcm').hidden=true;MIDI.test=false;$('test').hidden=true;capStart(CAP_ORDER.indexOf(id),true)};
   renderEdForm();renderEdList();openPanel('pick',true);
 }
 function renderEdForm(){
