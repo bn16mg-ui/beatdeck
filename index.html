@@ -1,177 +1,57 @@
 <!doctype html>
 <html lang="fr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
-<meta name="theme-color" content="#0b0d12"><link rel="manifest" href="beatdeck-manifest.json"><link rel="icon" href="beatdeck-192.png"><link rel="apple-touch-icon" href="beatdeck-192.png">
+<meta name="theme-color" content="#05031a"><link rel="manifest" href="beatdeck-manifest.json"><link rel="icon" href="beatdeck-192.png"><link rel="apple-touch-icon" href="beatdeck-192.png">
 <title>BeatDeck</title>
-<link rel="stylesheet" href="bd-style.css?v=5.3.1">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="bd-style.css?v=6.2.0">
 </head><body>
+<canvas id="ciel"></canvas>
 <div id="vp"><div id="stage">
   <header id="top">
-    <b id="logo">BEATDECK</b><span id="st" class="pill">Platine non détectée</span><span id="prep" class="pill" hidden></span><span id="cb" class="pill">Compatibilité —</span>
+    <b id="logo">BEATDECK</b>
+    <button id="plat" class="pill" title="Ta platine : connexion et configuration">Platine…</button>
     <span class="sp"></span>
-    <button id="au" class="hb" title="L'IA enchaîne les morceaux à ta place">AUTO</button>
-    <button id="garde" class="hb" title="Le public aime : je reste sur ce morceau aussi longtemps que tu veux">♥ GARDER</button>
-    <button id="gu" class="hb" title="L'IA te guide pendant que tu mixes">GUIDE</button>
-    <button id="stop" class="hb danger" title="Arrête tous les automatismes">■ ARRÊT</button>
-    <button class="hb" data-pal="pal_temps">Temps</button><button class="hb" data-pal="pal_ia">IA</button><button class="hb" data-pal="pal_fx">Effets</button>
-    <button class="hb" data-pal="rcm">Commandes</button><button class="hb" id="bLib">Morceaux</button><button class="hb" id="bStudio">Studio</button>
-    <button class="hb" id="rec" title="Enregistrer le mix">● REC</button><button class="hb" id="lock" title="Mode soirée : écran verrouillé et toujours allumé">🔒</button><button class="hb" id="bEdit" title="Touche une commande à l'écran pour changer sa fonction">✎</button><button class="hb" data-pal="set" title="Réglages">⚙</button><button class="hb" id="fs" title="Plein écran">⛶</button>
+    <span class="aide">Tiens SHIFT pour voir les raccourcis en jaune</span>
+    <button class="hb" id="bEd" title="Choisir quel raccourci va sur quel bouton">✎ Raccourcis</button>
+    <button class="hb" id="fs" title="Plein écran">⛶</button>
   </header>
   <div id="waves"></div>
   <div id="sx1"></div>
-  <footer id="bas"><div id="coach"></div><div id="note" hidden></div><div id="trans"></div><div id="actif"></div></footer>
 </div></div>
-
-<!-- Palette Temps -->
-<div class="pan pal" id="pal_temps" hidden><div class="card">
-  <div class="ch2"><h2>Temps</h2><span class="sp"></span><button class="x">Fermer</button></div>
-  <p id="tinfo" class="info"></p>
-  <h3>Ce morceau seulement</h3><div class="row" id="tcur"></div>
-  <h3>Durée de chaque morceau (mode AUTO)</h3><div class="row" id="tdef"></div>
-  <h3>Quand changer de morceau</h3><div class="row"><button data-tm="musical">Au meilleur moment musical (près de la durée)</button><button data-tm="precis">À l'échéance exacte (calée sur le temps)</button></div>
-  <h3>Durée de la transition</h3><div class="row"><button data-tb="8">Éclair · 8 temps</button><button data-tb="16">Normale · 16 temps</button><button data-tb="32">Longue · 32 temps</button></div>
-  <h3>Morceau suivant</h3><div class="row"><button id="tsi">Démarrer au refrain (sauter l'intro)</button></div>
-</div></div>
-
-<!-- Palette IA -->
-<div class="pan pal" id="pal_ia" hidden><div class="card">
-  <div class="ch2"><h2>IA</h2><span class="sp"></span><button class="x">Fermer</button></div>
-  <div class="row"><button id="iaAuto">Mode AUTO</button><button id="iaNow">Mixer maintenant</button><button id="iaPlanBtn">Voir le plan prévu</button></div>
-  <div id="iaPlan"></div>
-  <div class="row"><button id="iaSugg" class="on ai">Meilleurs morceaux pour celui qui joue</button><button id="iaVal">Me montrer chaque transition AUTO avant</button></div>
-  <h3>Piocher dans</h3><div class="row" id="iaBac"></div>
-  <h3>Exigence sur le style des morceaux</h3><div class="row"><button data-ex="stricte">Stricte (même style uniquement)</button><button data-ex="normale">Normale</button><button data-ex="libre">Libre</button></div>
-  <h3>Style des transitions</h3><div class="row"><button data-sty="propre">Propre, comme un DJ (conseillé)</button><button data-sty="festif">Festive (plus d'effets)</button></div>
-  <h3>Effets pendant les morceaux (mode AUTO)</h3><div class="row"><button data-anim="non">Aucun</button><button data-anim="discret">Discrets (montée avant les drops)</button><button data-anim="normal">Normaux</button></div>
-  <h3>Changer de style de musique</h3><div class="row"><button data-bloc="3">Après 3 morceaux</button><button data-bloc="5">Après 5</button><button data-bloc="8">Après 8</button><button data-bloc="0">Jamais</button><button id="iaRet">Revenir au tempo d'origine après chaque mix</button></div>
-  <h3>Ambiance</h3><div class="row"><button data-amb="chill">Calme</button><button data-amb="normal">Normale</button><button data-amb="chaud">Chaude</button></div>
-  <h3>Technique de transition</h3><div class="row" id="iaTech"></div>
-  <h3>Préférences</h3><div class="row"><button id="iaAp">Suivre le plan IA</button><button id="iaDa">Drop automatique</button><button id="iaFx">Effets automatiques</button><button id="iaAf">Corriger les erreurs avant le mix</button></div>
-  <p class="mu petit">« Suivre le plan IA » : chaque mix suit le plan calculé pour les deux morceaux. « Corriger les erreurs » : si un problème est détecté juste avant le mix, l'IA applique la correction proposée. Une technique forcée reste vérifiée par la détection d'erreurs.</p>
-</div></div>
-
-<!-- Palette Effets -->
-<div class="pan pal" id="pal_fx" hidden><div class="card wide">
-  <div class="ch2"><h2>Effets</h2><span class="sp"></span><button class="x">Fermer</button></div>
-  <p class="mu petit">« Essayer » joue l'effet sur le deck en cours. « Attribuer » : touche ensuite la commande de ta platine (ou à l'écran) qui doit faire cet effet. Tiens SHIFT en même temps pour l'attribuer à la combinaison SHIFT.</p>
-  <div class="row"><button id="mcB" class="on ai">Mes macros (plusieurs actions sur un seul bouton)</button></div>
-  <div id="fxl"></div>
-</div></div>
-
-<!-- Commandes -->
-<div class="pan" id="rcm" hidden><div class="card wide">
-  <div class="ch2"><h2>Commandes de la platine</h2><span class="sp"></span><button class="x">Fermer</button></div>
-  <p id="rcInfo" class="info"></p>
-  <div class="row"><button id="rcCap" class="on ai">Configurer la platine pas à pas</button><button id="rcTest">Tester les commandes</button><button id="rcEdit">Modifier en touchant l'écran</button><button id="rcReset">Tout remettre par défaut</button></div>
-  <div id="rcl"></div>
-</div></div>
-
-<!-- Éditeur de fonction -->
-<div class="pan" id="pick" hidden><div class="card wide">
-  <div class="ch2"><h2 id="pkT"></h2><span class="sp"></span><button class="x">Fermer</button></div>
-  <p id="pkSub" class="mu"></p>
-  <div id="pkForm"></div>
-  <input class="inp" id="pkQ" placeholder="Rechercher une fonction…"><div id="pkL"></div>
-</div></div>
-
-<!-- Morceaux -->
-<div class="pan" id="libm" hidden><div class="card wide">
-  <div class="ch2"><h2>Morceaux</h2><span class="sp"></span><button class="x">Fermer</button></div>
-  <input type="file" accept="audio/*" multiple id="lf" hidden><input type="file" webkitdirectory multiple id="lfd" hidden>
-  <div class="row"><button id="ld_" class="on ok">Mon dossier de musique</button><button id="la">Choisir des fichiers</button></div><p class="mu" id="ls"></p>
-  <h3>Duos conseillés (1 appui = deck 1 + deck 2)</h3><div id="dl"></div>
-  <div class="row"><button id="hiB">Historique de la soirée</button></div>
-  <h3>Bacs</h3><div class="row" id="bacs"></div>
-  <h3>Tous les morceaux</h3><input id="q" class="inp" placeholder="Rechercher un morceau…"><div id="ll"></div>
-</div></div>
-<div class="pan" id="sugg" hidden><div class="card wide">
-  <div class="ch2"><h2 id="sgT">Meilleurs morceaux</h2><span class="sp"></span><button class="x">Fermer</button></div>
-  <div class="row"><button data-sd="0">Après le deck 1</button><button data-sd="1">Après le deck 2</button></div>
-  <p id="sgI" class="info"></p><div id="sgL"></div>
-</div></div>
-<div class="pan" id="trk" hidden><div class="card"><div class="ch2"><h2 id="trkt" style="font-size:18px"></h2><span class="sp"></span><button class="x">Fermer</button></div><div id="trkb"></div></div></div>
-
-<!-- Studio -->
-<div class="pan" id="studio" hidden><div class="card big">
-  <div class="ch2"><h2>Studio</h2><span class="sp"></span><button class="x">Fermer</button></div>
-  <div class="tabs"><button data-st="st_tr" class="on">Transition</button><button data-st="st_du">Duos</button><button data-st="st_set">Set</button></div>
-  <div id="st_tr" class="tabp"></div><div id="st_du" class="tabp" hidden></div><div id="st_set" class="tabp" hidden></div>
-</div></div>
-
-<!-- Macros -->
-<div class="pan" id="macros" hidden><div class="card wide">
-  <div class="ch2"><h2>Mes macros</h2><span class="sp"></span><button class="x">Fermer</button></div>
-  <div class="row"><select class="sel" id="mcSel"></select><button id="mcNew">Nouvelle</button><button id="mcRen">Renommer</button><button id="mcDel">Supprimer</button></div>
-  <div class="row"><button id="mcTry" class="on ok">Lancer</button><button id="mcAsg" class="on ai">Attribuer à une commande</button><button id="mcIA">L'IA propose une macro pour les 2 morceaux chargés</button></div>
-  <div id="mcE"></div>
-</div></div>
-<!-- Aperçu avant transition AUTO -->
-<div class="pan pal" id="apercu" hidden><div class="card">
-  <div class="ch2"><h2>Transition prévue</h2><span class="sp"></span></div>
-  <p id="apI" class="info"></p><canvas id="apC" class="tl" style="height:90px"></canvas><div id="apL"></div>
-  <div class="row"><button id="apOk" class="on ok">Valider</button><button id="apAlt">Autre technique</button><button id="apNo">Repousser de 32 temps</button></div>
-</div></div>
-<!-- Historique -->
-<div class="pan" id="hist" hidden><div class="card wide">
-  <div class="ch2"><h2>Historique de la soirée</h2><span class="sp"></span><button class="x">Fermer</button></div>
-  <div class="row"><button id="hiX">Copier la liste</button><button id="hiC">Effacer</button></div><div id="hiL"></div>
-</div></div>
-<!-- Réglages -->
-<div class="pan" id="set" hidden><div class="card">
-  <div class="ch2"><h2>Réglages</h2><span class="sp"></span><button class="x">Fermer</button></div>
-  <h3>Profil (commandes, affichage, préférences de l'IA)</h3><select id="pf" class="sel"></select>
-  <div class="row"><button id="pfn">Nouveau</button><button id="pfd">Dupliquer</button><button id="pfr">Renommer</button><button id="pfx">Supprimer</button><button id="pfe">Exporter</button><button id="pfi">Importer</button></div><input type="file" id="pfif" accept="application/json,.json" hidden>
-  <h3>Retard du son (enceintes Bluetooth)</h3>
-  <p class="mu petit">Le Bluetooth ajoute un retard entre la tablette et les enceintes. Mesure-le pour que les effets et les boucles tombent pile sur ce que tu entends.</p>
-  <div class="row"><b id="latV"></b><button id="latM" class="on ai">Mesurer le retard</button><input type="range" class="rg" id="latS" min="0" max="500" step="5" style="flex:1"></div>
-  <h3>Casque séparé (platine branchée en USB)</h3>
-  <p class="mu petit" id="casInfo">Fonctionne seulement si la tablette envoie le son à la platine par le câble USB, et si Chrome accepte 4 canaux.</p>
-  <div class="row"><button id="casT">Tester le casque séparé</button><label class="chk"><input type="checkbox" id="casOn">Utiliser le casque séparé</label></div>
-  <h3>Son</h3>
-  <label class="chk"><input type="checkbox" id="egal">Égaliser le volume entre les morceaux</label>
-  <label class="chk"><input type="checkbox" id="calage">Démarrer le deck suivant calé sur le temps de l'autre</label>
-  <label class="chk"><input type="checkbox" id="anaLive">Analyser la bibliothèque même pendant la lecture</label>
-  <div class="row"><button id="tb">Tester le son</button></div>
-  <h3>Affichage</h3>
-  <label class="chk"><input type="checkbox" id="ui_wave">Formes d'onde</label><label class="chk"><input type="checkbox" id="ui_coach">Bandeau d'aide de l'IA</label>
-  <span class="mu petit">Taille maximale de l'interface</span><input type="range" class="rg" id="ui_size" min=".6" max="1" step=".05">
-  <div class="row"><button id="inst" hidden>Installer l'application</button></div>
-  <p class="mu petit" id="ver"></p>
-</div></div>
-
-<!-- Mesure du retard -->
-<div class="pan" id="calib" hidden><div class="card">
-  <div class="ch2"><h2>Mesure du retard</h2><span class="sp"></span><button class="x">Fermer</button></div>
-  <p>Mets le volume des enceintes à un niveau normal. Je vais jouer des « tic ». <b>Touche le grand bouton en même temps que chaque tic que tu entends</b>, en suivant le rythme.</p>
-  <button id="calTap" class="tap">Commencer</button>
-  <p id="calR" class="info"></p>
-</div></div>
-
-<!-- Choix -->
-<div class="pan" id="choose" hidden><div class="card"><h3 id="cht"></h3><div class="row" id="chb"></div><div class="row"><button class="x">Annuler</button></div></div></div>
-
-<!-- Capture guidée -->
-<div id="cap" class="bandeau" hidden><div class="card">
-  <small id="capN"></small><h2 id="capT"></h2><p id="capH"></p><p id="capR" class="info"></p><div class="bar"><i id="capP"></i></div>
-  <div class="row"><button id="capB">← Retour</button><button id="capRe">Recommencer cette étape</button><button id="capNone">Elle n'envoie rien</button><button id="capSk">Passer</button><span class="sp"></span><button id="capQ">Quitter</button></div>
-</div></div>
-<!-- Test des commandes -->
-<div id="test" class="bandeau" hidden><div class="card">
-  <h2>Test des commandes</h2><p id="testL" class="info">Bouge une commande de ta platine : elle s'allume à l'écran et son message s'affiche ici.</p>
-  <div class="row"><label class="chk"><input type="checkbox" id="testRun">Exécuter aussi les fonctions</label><span class="sp"></span><button id="testQ">Fermer</button></div>
-</div></div>
-<div id="learn" class="bandeau" hidden><div class="card"><h2 id="lnT"></h2><p>Touche maintenant la commande de ta platine (ou à l'écran) qui doit faire cet effet. Tiens SHIFT en même temps pour l'attribuer à la combinaison SHIFT.</p><div class="row"><span class="sp"></span><button id="lnQ">Annuler</button></div></div></div>
-
 <div id="toast"></div>
-<script src="bd-core.js?v=5.3.1"></script>
-<script src="bd-audio.js?v=5.3.1"></script>
-<script src="bd-analyse.js?v=5.3.1"></script>
-<script src="bd-fonctions.js?v=5.3.1"></script>
-<script src="bd-midi.js?v=5.3.1"></script>
-<script src="bd-bib.js?v=5.3.1"></script>
-<script src="bd-auto.js?v=5.3.1"></script>
-<script src="bd-studio.js?v=5.3.1"></script>
-<script src="bd-ui.js?v=5.3.1"></script>
-<script src="bd-plus.js?v=5.3.1"></script>
-<script src="bd-app.js?v=5.3.1"></script>
+
+<!-- Ta platine -->
+<div class="pan" id="platp" hidden><div class="card">
+  <div class="ch2"><h2>Ta platine</h2><span class="sp"></span><button class="x">Fermer</button></div>
+  <p id="platI" class="info"></p>
+  <p>Si une commande de ta platine ne fait pas la bonne chose ou marche à l'envers, réapprends-la. Si plusieurs commandes se trompent, refais toute la configuration (environ 2 minutes).</p>
+  <div class="row"><button id="pRe" class="fort">Réapprendre une commande</button><button id="pCap">Configurer toute la platine</button></div>
+</div></div>
+
+<!-- Choisir ses raccourcis -->
+<div class="pan cote" id="rpan" hidden><div class="card">
+  <div class="ch2"><h2 id="rT"></h2><span class="sp"></span><button id="rFin" class="fort">Terminé</button></div>
+  <p id="rCur" class="info"></p>
+  <div class="tabs" id="rTabs"><button data-c="base" class="on">Appui normal</button><button data-c="shift">Avec SHIFT (jaune)</button></div>
+  <label class="chk" id="rDeuxL"><input type="checkbox" id="rDeux" checked> Mettre le même raccourci sur le bouton de l'autre deck</label>
+  <div id="rL"></div>
+  <div class="row"><button id="rReset">Remettre les raccourcis conseillés partout</button></div>
+  <p class="mu">Pour changer un autre bouton, touche-le directement (à l'écran ou sur ta platine).</p>
+</div></div>
+
+<!-- Apprentissage des commandes -->
+<div class="bandeau" id="cap" hidden><div class="card">
+  <small id="capN" class="mu"></small><h3 id="capT"></h3><p id="capH"></p><p id="capR" class="ok"></p>
+  <div class="barre"><i id="capP"></i></div>
+  <div class="row"><button id="capB">Revenir</button><button id="capS">Passer (cette commande n'envoie rien)</button><span class="sp"></span><button id="capX">Arrêter</button></div>
+</div></div>
+
+<script src="bd-interface.js?v=6.2.0"></script>
+<script src="bd-son.js?v=6.2.0"></script>
+<script src="bd-commandes.js?v=6.2.0"></script>
+<script src="bd-raccourcis.js?v=6.2.0"></script>
+<script src="bd-platine.js?v=6.2.0"></script>
+<script>demarrer()</script>
 </body></html>
