@@ -3,13 +3,14 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="theme-color" content="#0b0d12"><link rel="manifest" href="beatdeck-manifest.json"><link rel="icon" href="beatdeck-192.png"><link rel="apple-touch-icon" href="beatdeck-192.png">
 <title>BeatDeck</title>
-<link rel="stylesheet" href="bd-style.css?v=5.2.0">
+<link rel="stylesheet" href="bd-style.css?v=5.3.1">
 </head><body>
 <div id="vp"><div id="stage">
   <header id="top">
     <b id="logo">BEATDECK</b><span id="st" class="pill">Platine non détectée</span><span id="prep" class="pill" hidden></span><span id="cb" class="pill">Compatibilité —</span>
     <span class="sp"></span>
     <button id="au" class="hb" title="L'IA enchaîne les morceaux à ta place">AUTO</button>
+    <button id="garde" class="hb" title="Le public aime : je reste sur ce morceau aussi longtemps que tu veux">♥ GARDER</button>
     <button id="gu" class="hb" title="L'IA te guide pendant que tu mixes">GUIDE</button>
     <button id="stop" class="hb danger" title="Arrête tous les automatismes">■ ARRÊT</button>
     <button class="hb" data-pal="pal_temps">Temps</button><button class="hb" data-pal="pal_ia">IA</button><button class="hb" data-pal="pal_fx">Effets</button>
@@ -40,6 +41,9 @@
   <div class="row"><button id="iaSugg" class="on ai">Meilleurs morceaux pour celui qui joue</button><button id="iaVal">Me montrer chaque transition AUTO avant</button></div>
   <h3>Piocher dans</h3><div class="row" id="iaBac"></div>
   <h3>Exigence sur le style des morceaux</h3><div class="row"><button data-ex="stricte">Stricte (même style uniquement)</button><button data-ex="normale">Normale</button><button data-ex="libre">Libre</button></div>
+  <h3>Style des transitions</h3><div class="row"><button data-sty="propre">Propre, comme un DJ (conseillé)</button><button data-sty="festif">Festive (plus d'effets)</button></div>
+  <h3>Effets pendant les morceaux (mode AUTO)</h3><div class="row"><button data-anim="non">Aucun</button><button data-anim="discret">Discrets (montée avant les drops)</button><button data-anim="normal">Normaux</button></div>
+  <h3>Changer de style de musique</h3><div class="row"><button data-bloc="3">Après 3 morceaux</button><button data-bloc="5">Après 5</button><button data-bloc="8">Après 8</button><button data-bloc="0">Jamais</button><button id="iaRet">Revenir au tempo d'origine après chaque mix</button></div>
   <h3>Ambiance</h3><div class="row"><button data-amb="chill">Calme</button><button data-amb="normal">Normale</button><button data-amb="chaud">Chaude</button></div>
   <h3>Technique de transition</h3><div class="row" id="iaTech"></div>
   <h3>Préférences</h3><div class="row"><button id="iaAp">Suivre le plan IA</button><button id="iaDa">Drop automatique</button><button id="iaFx">Effets automatiques</button><button id="iaAf">Corriger les erreurs avant le mix</button></div>
@@ -159,15 +163,15 @@
 <div id="learn" class="bandeau" hidden><div class="card"><h2 id="lnT"></h2><p>Touche maintenant la commande de ta platine (ou à l'écran) qui doit faire cet effet. Tiens SHIFT en même temps pour l'attribuer à la combinaison SHIFT.</p><div class="row"><span class="sp"></span><button id="lnQ">Annuler</button></div></div></div>
 
 <div id="toast"></div>
-<script src="bd-core.js?v=5.2.0"></script>
-<script src="bd-audio.js?v=5.2.0"></script>
-<script src="bd-analyse.js?v=5.2.0"></script>
-<script src="bd-fonctions.js?v=5.2.0"></script>
-<script src="bd-midi.js?v=5.2.0"></script>
-<script src="bd-bib.js?v=5.2.0"></script>
-<script src="bd-auto.js?v=5.2.0"></script>
-<script src="bd-studio.js?v=5.2.0"></script>
-<script src="bd-ui.js?v=5.2.0"></script>
-<script src="bd-plus.js?v=5.2.0"></script>
-<script src="bd-app.js?v=5.2.0"></script>
+<script src="bd-core.js?v=5.3.1"></script>
+<script src="bd-audio.js?v=5.3.1"></script>
+<script src="bd-analyse.js?v=5.3.1"></script>
+<script src="bd-fonctions.js?v=5.3.1"></script>
+<script src="bd-midi.js?v=5.3.1"></script>
+<script src="bd-bib.js?v=5.3.1"></script>
+<script src="bd-auto.js?v=5.3.1"></script>
+<script src="bd-studio.js?v=5.3.1"></script>
+<script src="bd-ui.js?v=5.3.1"></script>
+<script src="bd-plus.js?v=5.3.1"></script>
+<script src="bd-app.js?v=5.3.1"></script>
 </body></html>

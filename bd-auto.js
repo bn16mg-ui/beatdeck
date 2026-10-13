@@ -1,6 +1,6 @@
 'use strict';
 /* ===== BeatDeck 5 · IA de mix : plans, transitions, mode AUTO ===== */
-const PREF_DEF={valider:false,bac:'',ex:'stricte',mt:90,tm:'musical',tb:16,si:false,da:false,fx:true,ap:true,amb:'normal',ft:'',af:true,anaLive:false};
+const PREF_DEF={style:'propre',anim:'discret',bloc:5,retour:true,valider:false,bac:'',ex:'stricte',mt:90,tm:'musical',tb:16,si:false,da:false,fx:false,ap:true,amb:'normal',ft:'',af:true,anaLive:false};
 let PREF=Object.assign({},PREF_DEF);
 let savePref=()=>{};
 const AUTO={on:false,queue:[],played:new Set(),lastQ:false,mixNow:0,plan:[],rafale:0,fromDeck:0,SETP:{},info:null};
@@ -16,7 +16,7 @@ function coach(t,tip,ttl){const c=$('coach');if(!c)return;clearTimeout(coachT);c
 /* --- Arrêt d'urgence --- */
 function arretUrgence(){
   [...JOBS].forEach(j=>j.stop());
-  setAuto(false,true);AUTO.mixNow=0;AUTO.rafale=0;
+  setAuto(false,true);AUTO.mixNow=0;AUTO.rafale=0;if(typeof GARDE!='undefined'&&GARDE.on){GARDE.on=false;majGarde()}
   D.forEach(d=>{resetDeckFx(d);d.arm=0});mix();
   coach('');toast('Arrêt d\'urgence : tous les automatismes sont coupés, tu as la main');
 }
@@ -40,7 +40,7 @@ function chain(kind,entry,L0){
   const p=beatLen(o),wall=wallBeat(o),len=Math.max(4,Math.round(2.5/wall/4)*4),beats={roll:16,stutter:3*len,spin:4,brake:2,echo:2,cut:0}[kind];
   if(tl(o)<(beats+2)*wall+6){toast('Trop près de la fin du morceau');return false}
   if(kind=='stutter'&&o.a.currentTime<(len+1)*p){toast('Trop tôt dans le morceau');return false}
-  match(n,o);
+  if(Math.abs(foldR(o.bpm*rateOf(o),n.bpm)-1)<=.08)match(n,o);else{n.rate=1;applyRate(n)}
   const ent=entry!=null?{t:entry,why:'entrée choisie'}:entryFor(n,kind,o),pn=beatLen(n),e=Math.max(0,n.off+Math.round((ent.t-n.off)/pn)*pn);
   const wait=((1-phaseOf(o))%1)*wall*1000;
   const j=new Job(KN[kind],{cle:'transition',auto:true});AUTO.fromDeck=L;
@@ -81,7 +81,7 @@ function mixFondu(beats){
 function getPlan(o,n,opt={}){
   const ra=recOf(o),rb=recOf(n);if(!ra||!rb)return null;
   const ia=o.cur&&o.cur.id,ib=n.cur&&n.cur.id,saved=ia&&ib&&(duoFor(ia,ib)||AUTO.SETP[ia+'>'+ib]);
-  const base={tb:tbNow(),skipIntro:PREF.si,near:opt.near??undefined,exitMin:o.a.currentTime+4,drop:PREF.da||PREF.amb=='chaud',tech:PREF.ft||null};
+  const base={propre:PREF.style!='festif',tb:tbNow(),skipIntro:PREF.si,near:opt.near??undefined,exitMin:o.a.currentTime+4,drop:PREF.da||PREF.amb=='chaud',tech:PREF.ft||null};
   if(opt.fixExit!=null)base.fixExit=opt.fixExit;
   let P=planPair(ra,rb,base);if(!P)return null;
   if(saved&&!PREF.ft&&!P.limited){const ok=saved.exit>o.a.currentTime+3&&opt.fixExit==null;P=refit(ra,rb,P,{tech:saved.tech,tb:saved.tb,entry:saved.entry,exit:ok?saved.exit:undefined,eq:saved.eq,fx:saved.fx},base);P.saved=1}
@@ -91,7 +91,7 @@ const score=P=>P.issues.reduce((s,i)=>s+(i.sev=='err'?3:1),0);
 function autoFixPlan(P,o){
   const fixed=[];if(!PREF.af||P.limited)return{P,fixed};
   for(let g=0;g<3;g++){const e=P.issues.find(x=>x.sev=='err'&&x.fix)||P.issues.find(x=>x.fix);if(!e)break;
-    const N=refit(P.ra,P.rb,P,e.fix,{tb:tbNow(),skipIntro:PREF.si,exitMin:o?o.a.currentTime+4:0});if(score(N)>=score(P))break;N.ra=P.ra;N.rb=P.rb;fixed.push(e.msg);P=N}
+    const N=refit(P.ra,P.rb,P,e.fix,{propre:PREF.style!='festif',tb:tbNow(),skipIntro:PREF.si,exitMin:o?o.a.currentTime+4:0});if(score(N)>=score(P))break;N.ra=P.ra;N.rb=P.rb;fixed.push(e.msg);P=N}
   return{P,fixed};
 }
 const planTxt=P=>planTxtF(P);
@@ -100,7 +100,7 @@ const planTxt=P=>planTxtF(P);
 function runPlan(E,P,done){
   const L=E.live(),N=1-L,o=E.D[L],n=E.D[N];
   if(!o.grid||!n.grid||!n.a.src){done&&done('nogrid');return false}
-  E.match(n,o);const q=60/o.bpm/o.a.playbackRate,bn=60/n.bpm,tb=Math.max(1,P.tb||16),dur=tb*q*1000,tech=P.tech;
+  if(P.nomatch)E.native(n);else E.match(n,o);const q=60/o.bpm/o.a.playbackRate,bn=60/n.bpm,tb=Math.max(1,P.tb||16),dur=tb*q*1000,tech=P.tech;
   const ent=Math.max(0,n.off+Math.round(((P.entry??n.off)-n.off)/bn)*bn),set=(i,k,v)=>E.set(i,k,v),B=(i,k)=>E.base(i,k),eq=P.eq||{};
   ['low','mid','hi','flt'].forEach(k=>set(N,k,null));
   if(BLENDISH.includes(tech)){set(N,'low',0);if(eq.midCut)set(N,'mid',.15)}
@@ -129,7 +129,7 @@ function runPlan(E,P,done){
   return true;
 }
 function liveEngine(j){
-  return{D,live:()=>live(),match:(n,o)=>match(n,o),
+  return{D,live:()=>live(),match:(n,o)=>match(n,o),native:n=>{n.rate=1;n.rateMul=1;n.syncLock=false;applyRate(n)},
     set:(i,k,v)=>{if(v==null)delete D[i].ov[k];else D[i].ov[k]=v;applyDeck(D[i])},base:(i,k)=>D[i].k[k],
     xf:v=>{G.xf=v;mix()},mute:(i,b)=>setMute(D[i],b),
     loop:(i,s,len)=>{const d=D[i];if(s==null){if(d.lp)killLoop(d)}else loopOn(d,len,{start:s})},
@@ -188,6 +188,7 @@ async function autoTick(){
     if(!n.grid){coach('Je prépare : '+n.name);return}
     if(o.a.ended){G.xf=N;mix();playDeck(n);o.done=1;return}
     if(o.a.paused){coach('Appuie sur lecture du deck '+(L+1)+' pour lancer la soirée'+qn);return}
+    if(typeof GARDE!='undefined'&&GARDE.on&&GARDE.deck==L){if(AUTO.mixNow)setGarde(false);else{coach('♥ Je garde ce morceau'+(GARDE.tours?' (tour '+(GARDE.tours+1)+')':'')+' · réappuie sur ♥ GARDER pour repartir'+qn);return}}
     if(jobActif('auto-arm'))return;
     const dur=tbNow()*wallBeat(o);
     if(o.dl==null)o.dl=o.a.currentTime+(AUTO.plan.length?AUTO.plan.shift():(PREF.mt||1e9));

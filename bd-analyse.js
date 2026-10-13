@@ -1,6 +1,6 @@
 'use strict';
 /* ===== BeatDeck 5 · analyse musicale locale (rien n'est envoyé sur Internet) ===== */
-const ANA_V=5;
+const ANA_V=7;
 const KP=[[6.35,2.23,3.48,2.33,4.38,4.09,2.52,5.19,2.39,3.66,2.29,2.88],[6.33,2.68,3.52,5.38,2.6,3.53,2.54,4.75,3.98,2.69,3.34,3.17]];
 function keyOf(x,sr){
   const W=16384,ch=new Float32Array(12),w=new Float32Array(W),st=Math.max(0,Math.floor(x.length/2-sr*15)),en=Math.min(x.length,st+sr*30);
@@ -38,10 +38,10 @@ const m4=(a,r)=>[0,4,8,12].reduce((s,i)=>s+a[(i+r)%16],0)/4;
 function familleRythme(rk,rh){
   const bk=[0,4,8,12].map(i=>rk[i]),reg=Math.min(...bk)/(Math.max(...bk)||1);
   const hK=[0,1,2,3].map(r=>m4(rk,r)),hH=[0,1,2,3].map(r=>m4(rh,r)),mH=Math.max(...hH)||1;
-  const sync=Math.max(hH[3]/mH,hK[3]/(hK[0]||1),hH[1]/mH*.8);
+  const p8=[...Array(8)].map((_,i)=>(rh[i]+rh[i+8])/2),m8=Math.max(...p8)||1,sync=Math.max(Math.max(p8[3],p8[7])/m8,hK[3]/(hK[0]||1));
   let rf='autre',c=.4;
   if(reg<.45){rf='demi';c=clamp((.55-reg)*2.5)}
-  else if(sync>=.55){rf='syncope';c=clamp((sync-.45)*2)}
+  else if(sync>=.6){rf='syncope';c=clamp((sync-.5)*2.5)}
   else if(reg>=.6&&hK[0]>=1.5*Math.max(hK[1],hK[2],hK[3])){rf='quatre';c=clamp((reg-.5)*2)}
   return{rf,rfc:+c.toFixed(2)};
 }
@@ -57,7 +57,29 @@ function styleSim(ra,rb){
   if(familleConflit(ra,rb))s=Math.min(s,.35);
   return s;
 }
-const familleConflit=(ra,rb)=>!!(ra&&rb&&ra.rf&&rb.rf&&ra.rf!='autre'&&rb.rf!='autre'&&ra.rf!=rb.rf&&(ra.rfc||0)>=.3&&(rb.rfc||0)>=.3);
+const familleConflit=(ra,rb)=>!!(ra&&rb&&ra.rf&&rb.rf&&ra.rf!='autre'&&rb.rf!='autre'&&ra.rf!=rb.rf&&(ra.rfc||0)>=.5&&(rb.rfc||0)>=.5&&ra.rk&&rb.rk&&(.5*sim16(ra.rk,rb.rk)+.5*sim16(ra.rh,rb.rh))<.8);
+
+
+/* ===== Refrains estimés : passages qui se répètent (accords identiques) avec une énergie élevée =====
+   Estimation, pas une reconnaissance des paroles. Sert à ne jamais couper un refrain. */
+function refrainsOf(x,sr,bpm,off){
+  const beat=60/bpm,blk=8*beat,W=8192,nb=Math.floor((x.length/sr-off)/blk)-1;if(nb<8)return null;
+  const w=new Float32Array(W);for(let j=0;j<W;j++)w[j]=.5-.5*Math.cos(6.2832*j/W);
+  const cs=[];for(let n=0;n<36;n++)cs.push([2*Math.cos(6.2832*110*Math.pow(2,n/12)/sr),(n+9)%12]);
+  const C=[],E=[];
+  for(let b=0;b<nb;b++){const ch=new Float64Array(12),t0=off+b*blk;let e=0,ce=0;
+    for(const f of[.3,.7]){const p=Math.floor((t0+f*blk)*sr)-W/2;if(p<0||p+W>=x.length)continue;
+      for(const[c,pc]of cs){let s1=0,s2=0;for(let j=0;j<W;j+=2){const s0=w[j]*x[p+j]+c*s1-s2;s2=s1;s1=s0}ch[pc]+=Math.sqrt(Math.max(0,s1*s1+s2*s2-c*s1*s2))}}
+    for(let i=Math.floor(t0*sr),e1=Math.floor((t0+blk)*sr);i<e1&&i<x.length;i+=64){e+=x[i]*x[i];ce++}
+    let nn=0;for(const v of ch)nn+=v*v;nn=Math.sqrt(nn)||1;C.push([...ch].map(v=>v/nn));E.push(Math.sqrt(e/(ce||1)));
+  }
+  const dot=(a,b)=>a.reduce((s,v,i)=>s+v*b[i],0),eM=med(E),rep=C.map((c,b)=>{let r=0;for(let j=0;j<nb;j++){if(Math.abs(j-b)<4)continue;const s=(dot(c,C[j])+(b+1<nb&&j+1<nb?dot(C[b+1],C[j+1]):dot(c,C[j])))/2;if(s>.94)r++}return r});
+  const eQ=[...E].sort((a,b)=>a-b)[Math.floor(E.length*.6)]||eM,cand=rep.map((r,b)=>r>=1&&E[b]>=eQ),out=[];
+  for(let b=0;b<nb;b++){if(!cand[b])continue;let e=b;while(e+1<nb&&cand[e+1])e++;if(e-b>=1)out.push([+(off+b*blk).toFixed(1),+(off+(e+1)*blk).toFixed(1)]);b=e}
+  return out.length&&out.length<=8&&out.reduce((s,[a,b])=>s+b-a,0)<.7*(x.length/sr)?out:[];
+}
+const inRef=(r,t,m=2)=>!!(r&&r.ref&&r.ref.some(([a,b])=>t>a+m&&t<b-m));
+const refAt=(r,t)=>r&&r.ref&&r.ref.find(([a,b])=>t>=a&&t<b)||null;
 
 const cumul=pk=>{const c=new Float32Array(pk.length+1);for(let i=0;i<pk.length;i++)c[i+1]=c[i]+pk[i];return c};
 const mn=(c,a,b)=>{a=Math.max(0,Math.floor(a*50));b=Math.min(c.length-1,Math.floor(b*50));return b>a?(c[b]-c[a])/(b-a):0};
@@ -100,10 +122,11 @@ function analyseBuf(buf){
   const R={v:ANA_V,bpm:Math.round(b2*100)/100,bc,off:ph/fps,pk,norm:Math.min(2,Math.max(.4,.12/(Math.sqrt(sq/cn)||.1))),key:keyOf(x,sr),dur:buf.duration};
   try{R.ex=exitOf(R);R.dr=entryList(R).map(e=>[+e.t.toFixed(2),+e.j.toFixed(3),+e.a.toFixed(3)]);R.en=+mn(cumul(pk),0,pk.length/50).toFixed(3)}catch(e){}
   try{const ry=rythmeOf(x,sr,R.bpm,R.off);if(ry)Object.assign(R,ry)}catch(e){}
+  try{R.ref=refrainsOf(x,sr,R.bpm,R.off)||[]}catch(e){R.ref=[]}
   try{const bf=bandFeat(x,sr);if(bf){R.bd=bf.bd;R.lw=bf.lw;R.br=bf.br}R.pc=+(o.reduce((s,v)=>s+v,0)/n/(Math.sqrt(sq/cn)||.1)).toFixed(4);R.bv=tempoSpread(o,fps,b2)}catch(e){}
   return R;
 }
-const slim=r=>({rk:r.rk,rh:r.rh,sw:r.sw,rf:r.rf,rfc:r.rfc,v:r.v,bpm:r.bpm,bc:r.bc,off:r.off,norm:r.norm,key:r.key,dur:r.dur,en:r.en,ex:r.ex,dr:r.dr,bd:r.bd,lw:r.lw,br:r.br,pc:r.pc,bv:r.bv,tg:r.tg});
+const slim=r=>({ref:r.ref,rk:r.rk,rh:r.rh,sw:r.sw,rf:r.rf,rfc:r.rfc,v:r.v,bpm:r.bpm,bc:r.bc,off:r.off,norm:r.norm,key:r.key,dur:r.dur,en:r.en,ex:r.ex,dr:r.dr,bd:r.bd,lw:r.lw,br:r.br,pc:r.pc,bv:r.bv,tg:r.tg});
 const confTxt=c=>c==null?'':c>=.6?'sûr':c>=.3?'probable':'incertain';
 /* ===== v4 · Analyse réelle des morceaux ===== */
 const BC=new WeakMap(),RC=new WeakMap();
@@ -215,6 +238,8 @@ function exitCands(r,o){
     const t=r.off+k*p,sc=secAt(S,t);let q=.4,cuts=false;
     if(S){const a=winB(r,t-8,t),b=winB(r,t,t+8),rf=refOf(r);if(a&&b)q+=clamp((a.e-b.e)/rf.e,-.3,.5)*.8;
       if(sc){const rest=sc.t1-t;if(sc.k=='outro')q+=.35;else if(sc.k=='break')q+=.2;else if(sc.k=='drop'&&t-sc.t0<12){cuts=true;q-=.3}else if(rest<=4)q+=.2}}
+    if(inRef(r,t)){q-=.45;cuts=true}else if(r.ref&&r.ref.some(([a,b])=>Math.abs(t-b)<=3))q+=.3;
+    if(o.phrase&&Math.round((t-r.off)/(60/r.bpm))%32!=0)q-=.15;
     L.push({t,q:clamp(q,0,1),cuts});
   }
   return L;
@@ -226,6 +251,7 @@ function entryCands(r,o){
     if(t<4)q+=.3;
     if(sc){if(Math.abs(t-sc.t0)<=3){q+=.25;if(sc.k=='drop'){q+=.1;drop=true}}else q-=.1;if(sc.k=='break')q-=.25;if(o.skipIntro&&sc.k=='intro')q-=.4}
     if(drops.some(d=>Math.abs(d-t)<3)){q+=.2;drop=true}
+    if(inRef(r,t))q-=.3;
     L.push({t,q:clamp(q,0,1),drop});
   }
   for(const d of drops)if(d<=hi&&!L.some(x=>Math.abs(x.t-d)<3)){const bt=60/r.bpm;L.push({t:Math.max(0,r.off+Math.round((d-r.off)/bt)*bt),q:.55,drop:true})}
@@ -239,8 +265,9 @@ function winBeats(tech,tbPref,sc){
   let b=tech=='filter'?Math.min(t,16):t;if(sc.total<.5||sc.ad>6)b=Math.min(b,8);return b;
 }
 function buildPlan(ra,rb,tech,o,sc){
-  const tb=o.tbForce||winBeats(tech,o.tb,sc),q=60/ra.bpm,T=Math.max(tb*q,6);
-  let ex=o.fixExit!=null?[{t:o.fixExit,q:.5,cuts:false}]:exitCands(ra,{min:o.exitMin,tail:T+12});
+  let tb=o.tbForce||winBeats(tech,o.tb,sc);if(o.propre&&!o.tbForce&&BLENDISH.includes(tech)){if(sc.key!=null&&sc.key<.4)tb=Math.min(tb,8);else if(sc.ad<=3&&sc.total>=.65)tb=Math.max(tb,32)}if(o.nomatch&&tech=='echo')tb=4;
+  const q=60/ra.bpm,T=Math.max(tb*q,6);
+  let ex=o.fixExit!=null?[{t:o.fixExit,q:.5,cuts:false}]:exitCands(ra,{min:o.exitMin,tail:T+12,phrase:o.propre});
   const en=o.fixEntry!=null?[{t:o.fixEntry,q:.5,drop:true}]:entryCands(rb,{skipIntro:o.skipIntro});
   if(o.near!=null&&o.fixExit==null){const f=ex.filter(e=>e.t>=o.near-4&&e.t<=o.near+60);ex=f.length?f:ex.filter(e=>e.t>=o.near-4).slice(0,2).concat(ex.slice(-1)).filter(Boolean)}
   if(!ex.length||!en.length)return null;
@@ -251,10 +278,11 @@ function buildPlan(ra,rb,tech,o,sc){
     if(w1&&w2&&rA&&rB){bass=Math.min(w1.l/rA.l,w2.l/rB.l);vo=Math.min(voxOf(w1,rA),voxOf(w2,rB));gap=Math.abs(w1.e/rA.e*lvF(ra)-w2.e/rB.e*lvF(rb));
       c+=(tech=='bassswap'||tech=='drop'?.2:1)*bass*.8+vo*1.1+(tech=='drop'?0:gap*.9)}
     if(o.near!=null)c+=Math.abs(e.t-o.near)*.004;if(e.cuts)c+=.4;
+    if(ra.ref&&ra.ref.some(([a])=>a>e.t+1&&a<e.t+T))c+=.3;
     if(!best||c<best.c)best={c,e,b,bass,vo,gap};
   }
   if(!best)return null;
-  const P={tech,tb,exit:best.e.t,entry:best.b.t,eq:{lowSwap:tech!='blend',midCut:best.vo>.35&&BLENDISH.includes(tech)},fx:{riser:tech=='drop',impact:tech=='drop'},cost:best.c,sc,metrics:{bass:best.bass,vox:best.vo,gap:best.gap},cuts:best.e.cuts};
+  const P={tech,tb,exit:best.e.t,entry:best.b.t,eq:{lowSwap:tech!='blend',midCut:best.vo>.35&&BLENDISH.includes(tech)},fx:{riser:tech=='drop'&&!o.propre,impact:tech=='drop'&&!o.propre},cost:best.c,sc,metrics:{bass:best.bass,vox:best.vo,gap:best.gap},cuts:best.e.cuts,nomatch:!!o.nomatch};
   P.why=whyOf(ra,rb,P);return P;
 }
 function whyOf(ra,rb,P){
@@ -274,6 +302,7 @@ function techPriors(sc,ra,rb,o){
   if(bad){pr.echo-=.2;pr.cut-=.05;pr.blend+=.5;pr.bassswap+=.5;pr.drop+=.3}
   else{if(sc.total>=.75&&sc.ad<=4){pr.bassswap-=.2;pr.blend-=.1}
     const ea=lvl(ra),eb=lvl(rb);if(eb>ea+1)pr.drop-=.15;if(o.drop)pr.drop-=.2}
+  if(o.propre){pr.blend-=.1;pr.bassswap-=.2;pr.echo+=.3;pr.filter+=.05}
   const h=Math.floor((ra.bpm*7+rb.bpm*13)*10)%3;pr.blend+=h==0?.02:0;pr.filter+=h==1?-.03:0;pr.bassswap+=h==2?.02:0;
   return pr;
 }
@@ -281,8 +310,12 @@ function techPriors(sc,ra,rb,o){
 function planAll(ra,rb,o={}){
   if(!ra||!rb||!ra.bpm||!rb.bpm)return[];
   const sc=pairScore(ra,rb,o.ga,o.gb),pr=techPriors(sc,ra,rb,o),L=[];
+  // changement de style ou de tempo trop grand : comme un DJ, sortie en écho sans forcer le tempo du suivant
+  const saut=o.propre&&!o.tech&&(sc.ad>6||sc.conflit||(sc.son!=null&&sc.son<.45));
+  if(saut){o=Object.assign({},o,{nomatch:true});const P=buildPlan(ra,rb,'echo',o,sc);if(P){P.issues=detectIssues(P,ra,rb).filter(i=>!['tempo','style','genre','key','energy'].includes(i.id));P.rank=0;P.why.unshift('Changement de style : sortie en écho sur une fin de phrase, le morceau suivant démarre à son propre tempo (rien n\'est forcé)');return[P]}}
   for(const tech of Object.keys(TECH)){
     if(o.tech&&o.tech!=tech)continue;
+    if(o.propre&&!o.tech&&(tech=='drop'||tech=='cut'))continue;
     const P=buildPlan(ra,rb,tech,o,sc);if(!P)continue;
     P.issues=detectIssues(P,ra,rb);const ne=P.issues.filter(i=>i.sev=='err').length,nw=P.issues.filter(i=>i.sev=='warn').length;
     P.rank=P.cost+pr[tech]+ne*.6+nw*.12;L.push(P);
@@ -313,6 +346,7 @@ function detectIssues(P,ra,rb){
   if(bl&&vo>.5&&P.tb>4){const alt=bestInstrEntry(rb,P);if(!P.eq.midCut)add('vocal','warn','Voix probables sur les deux titres en même temps pendant le mélange.',{eq:{midCut:true}});else if(vo>.75)add('vocal','warn','Voix très présentes des deux côtés malgré la coupe des médiums.',alt!=null?{entry:alt}:{tech:'echo'})}
   const stepB=60/rb.bpm*16,off=((P.entry-rb.off)%stepB+stepB)%stepB;if(Math.min(off,stepB-off)>60/rb.bpm*.75&&P.tech!='drop')add('entry','warn','L\'entrée de B ne tombe pas sur un début de phrase (16 temps) : elle sonnera décalée.',{entry:Math.max(0,rb.off+Math.round((P.entry-rb.off)/stepB)*stepB)});
   const sb=secAt(structure(rb),P.entry);if(sb&&sb.k=='break'&&P.tech!='drop')add('entry2','warn','B entre en plein break : peu de rythme pour caler le mélange.',{entry:sb.t1});
+  if(inRef(ra,P.exit))add('refrain','warn','La sortie coupe un refrain de A (estimé) : mieux vaut attendre la fin du refrain.',{exit:(refAt(ra,P.exit)||[0,P.exit])[1]});
   if(P.cuts)add('cut','warn','La sortie de A tombe juste après un drop : elle coupe une partie forte du morceau.',{exit:P.exit+16*60/ra.bpm});
   if(ra.dur&&P.exit+T+4>ra.dur)add('room','err','Il ne reste pas assez de morceau A pour terminer la transition.',{exit:Math.max(24,ra.dur-T-20),tb:8});
   if(bl&&!P.eq.lowSwap&&bass>.6&&P.tb>4)add('bass','warn','Les basses des deux titres vont se superposer (fondu sans échange des graves).',{tech:'bassswap',eq:{lowSwap:true}});

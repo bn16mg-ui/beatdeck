@@ -6,7 +6,8 @@ function newProf(){return{assign:clone(DEF_ASSIGN),inv:{},fxp:{},prefs:Object.as
 function useProf(p){
   PROF=p;PROF.assign=PROF.assign||{};PROF.inv=PROF.inv||{};PROF.fxp=PROF.fxp||{};
   for(const id in DEF_ASSIGN)if(!PROF.assign[id])PROF.assign[id]=clone(DEF_ASSIGN[id]);
-  PREF=Object.assign({},PREF_DEF,PROF.prefs||{});PROF.prefs=PREF;UI=Object.assign({wave:1,coach:1,size:1},PROF.ui||{});PROF.ui=UI;
+  PREF=Object.assign({},PREF_DEF,PROF.prefs||{});PROF.prefs=PREF;
+  if(!PROF.v53){Object.assign(PREF,{fx:false,style:'propre',anim:'discret',bloc:5,retour:true});if(PREF.tb<16)PREF.tb=16;PROF.v53=1}UI=Object.assign({wave:1,coach:1,size:1},PROF.ui||{});PROF.ui=UI;
 }
 let svT=0;
 function saveProf(){clearTimeout(svT);svT=setTimeout(()=>{PROF.prefs=PREF;PROF.ui=UI;PROFS[CURP]=PROF;LS.set('bd5_profs',PROFS);LS.set('bd5_prof',CURP)},150)}

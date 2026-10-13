@@ -88,7 +88,7 @@ function showTrk(k){
   if(!r||!r.bpm)h='<p>Ce morceau n\'est pas encore analysé, ou son tempo n\'a pas pu être détecté.</p>';
   else{const S=structure(r),t=r.tg||{};
     h=`<h3>Mesuré sur le fichier</h3><ul class="pl"><li>Tempo : ${nf(r.bpm,1)} BPM · <b>${confTxt(r.bc)}</b>${r.bv?' · variation '+nf(r.bv,1)+' BPM au début':''}</li><li>Tonalité : ${cm(r.key)} · <b>${confTxt(r.key&&r.key.c)}</b> (estimée sur 30 s au milieu)</li><li>Style du rythme : ${r.rf?RFN[r.rf]+' · <b>'+confTxt(r.rfc)+'</b>':'pas encore analysé'}</li><li>Énergie : niveau ${lvl(r)}/10 (par rapport à ta bibliothèque)</li><li>Répartition : graves ${Math.round((r.lw||0)*100)} % · aigus ${Math.round((r.br||0)*100)} %</li></ul>
-    <h3>Structure estimée d'après l'énergie</h3><p>${S?S.map(s=>SECN[s.k]+' '+fmt(s.t0)).join(' · '):'Analyse trop courte'}</p>
+    <h3>Structure estimée d'après l'énergie</h3><p>${S?S.map(s=>SECN[s.k]+' '+fmt(s.t0)).join(' · '):'Analyse trop courte'}</p><p>Refrains estimés (passages qui se répètent) : ${r.ref&&r.ref.length?r.ref.map(([a,b])=>fmt(a)+'–'+fmt(b)).join(', '):'aucun repéré'}</p>
     <h3>Pas encore disponible</h3><ul class="pl"><li>Paroles et voix : pas de reconnaissance vocale pour l'instant. Seuls les médiums sont mesurés pour estimer les voix qui se chevauchent.</li><li>Genre : lu dans les informations du fichier (${esc(t.g||'aucune')}) ou choisi ci-dessous.</li></ul>
     <h3>Genre (pour éviter les enchaînements incohérents)</h3><div class="chips" id="trkg">${[['','Auto (fichier)']].concat(GFAM.map(g=>[g[0],g[1]])).map(([v,n])=>`<button class="chip${(GENU[it.id]||'')==v?' a':''}" data-g="${v}">${n}</button>`).join('')}</div><p class="mu">Genre retenu : ${GFN[famOf(r,it.id)]||'inconnu'}</p>`}
   if(r&&r.bpm){const kopts=[];for(let n=1;n<=12;n++)for(const b of[false,true])kopts.push([n+(b?'B':'A'),n,b]);const dk=D.find(d=>d.cur===it);
@@ -119,14 +119,22 @@ function classer(ref,refId){
 }
 function passe(x,niv){const S=SEUILS[niv]||SEUILS.stricte,sc=x.sc;if(!sc)return true;return x.s>=S.t&&sc.tempo>=S.te&&(sc.son==null||sc.son>=S.so)&&!(niv!='libre'&&sc.conflit)}
 function pickNext(cur,again){
-  AUTO.warn='';
+  AUTO.warn='';AUTO.styleChange=false;
   if(AUTO.queue.length&&!again){AUTO.lastQ=true;return AUTO.queue.shift()}
   AUTO.lastQ=false;
-  const L=classer(cur&&cur.r,cur&&cur.id).filter(x=>!AUTO.played.has(x.it.id)&&!D.some(d=>d.cur===x.it));
-  if(!cur||!cur.r){const x=L[Math.floor(Math.random()*Math.min(L.length,5))];return x?x.it:null}
-  const niv=PREF.ex||'stricte';
+  const nLib=lib.filter(x=>x.r&&x.r.bpm).length,K=Math.max(2,Math.min(15,Math.floor(nLib*.6)));
+  const recent=new Set(HIST.slice(-K).map(h=>h.id));D.forEach(d=>{if(d.cur)recent.add(d.cur.id)});
+  const L0=classer(cur&&cur.r,cur&&cur.id).filter(x=>!D.some(d=>d.cur===x.it)),L=L0.filter(x=>!recent.has(x.it.id)&&!AUTO.played.has(x.it.id));
+  if(!cur||!cur.r){const x=L[Math.floor(Math.random()*Math.min(L.length,5))]||L0[0];return x?x.it:null}
+  const niv=PREF.ex||'stricte',fam=cur.r.rf;
+  // nombre de morceaux joués d'affilée dans la même famille de rythme
+  let run=0;for(let k=HIST.length-1;k>=0;k--){const it=itemById(HIST[k].id);if(it&&it.r&&it.r.rf==fam)run++;else break}
+  const pont=x=>{const sc=x.sc;if(!sc)return 0;const e=sc.energy??.5,k=sc.key??.5;return .45*Math.max(0,1-Math.abs(foldR(cur.r.bpm,x.it.r.bpm)-1)*4)+.25*k+.3*e};
+  const autres=L.filter(x=>x.it.r.rf&&fam&&x.it.r.rf!=fam&&x.it.r.rf!='autre').sort((a,b)=>pont(b)-pont(a));
+  if(PREF.bloc>0&&run>=PREF.bloc&&autres.length){AUTO.styleChange=true;AUTO.warn='Changement de style après '+run+' morceaux : '+RFC[autres[0].it.r.rf]+' (sortie propre en écho)';return autres[0].it}
   let ch=L.find(x=>passe(x,niv))||(niv=='stricte'?L.find(x=>passe(x,'normale')):null);
-  if(!ch&&!again&&AUTO.played.size){AUTO.played.clear();D.forEach(d=>{if(d.cur)AUTO.played.add(d.cur.id)});return pickNext(cur,true)}
-  if(!ch&&L.length){ch=L[0];AUTO.warn='Aucun morceau vraiment du même style : je prends le moins éloigné ('+Math.round(ch.s*100)+' %). Ajoute des morceaux du même style ou choisis toi-même.'}
+  if(!ch&&autres.length){AUTO.styleChange=true;AUTO.warn='Plus de morceau du même style : je change de style proprement ('+RFC[autres[0].it.r.rf]+')';return autres[0].it}
+  if(!ch&&L.length){ch=L[0];AUTO.warn='Aucun morceau vraiment compatible : je prends le moins éloigné, avec une sortie en écho'}
+  if(!ch){const last=id=>{for(let k=HIST.length-1;k>=0;k--)if(HIST[k].id==id)return HIST[k].t;return 0};const old=L0.filter(x=>!recent.has(x.it.id)&&passe(x,'normale')).sort((a,b)=>last(a.it.id)-last(b.it.id));ch=old[0]||L0.filter(x=>passe(x,'normale')).sort((a,b)=>last(a.it.id)-last(b.it.id))[0]||L0[0];if(ch)AUTO.warn='Tous tes morceaux compatibles sont déjà passés : je reprends le plus ancien. Ajoute plus de musique pour éviter les répétitions.'}
   return ch?ch.it:null;
 }

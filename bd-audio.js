@@ -162,7 +162,7 @@ let CALAGE=LS.get('bd5_calage',true);
 function playDeck(d,quiet){
   AC.resume();if(!d.a.src){if(!quiet)toast('Charge un morceau sur ce deck');return false}
   const o=D[1-d.i];if(d.pend)return false;
-  if(CALAGE&&!o.a.paused&&o.grid&&d.grid&&!d.lp){
+  if(CALAGE&&!o.a.paused&&o.grid&&d.grid&&!d.lp&&Math.abs(foldR(o.bpm*rateOf(o),d.bpm)-1)<=.08){
     match(d,o);const p=beatLen(d);
     d.a.currentTime=Math.max(0,d.off+Math.round((d.a.currentTime-d.off)/p)*p);
     const wait=(1-phaseOf(o))%1*wallBeat(o)*1000;

@@ -20,7 +20,7 @@ function mkPE(){
   E.set=(i,k,v)=>{E.D[i].S[k]=v==null?.5:v;E.ap()};E.xf=v=>{E.x=v;E.ap()};E.mute=(i,b)=>{E.D[i].mute=b?1:0;E.ap()};
   E.loop=(i,s,len)=>{E.D[i].lp=s==null?null:[s,s+len]};
   E.match=(f,l)=>{if(!f.bpm||!l.bpm)return;let r=l.bpm*l.a.playbackRate/f.bpm;while(r>1.4)r/=2;while(r<.7)r*=2;f.a.playbackRate=r};
-  E.restore=i=>{E.D[i].a.playbackRate=1};
+  E.restore=i=>{E.D[i].a.playbackRate=1};E.native=f=>{f.a.playbackRate=1};
   E.echo=(i,w)=>{const T=ac.currentTime;dly.delayTime.setValueAtTime(Math.min(1.9,w*.75),T);const s=E.D[i].sg;s.gain.cancelScheduledValues(T);s.gain.setValueAtTime(1,T);s.gain.setValueAtTime(0,T+w)};
   E.later=(f,ms)=>{E.tm.push(setTimeout(()=>{if(!E.ab)f()},ms))};
   E.frame=f=>{const st=()=>{if(E.ab)return;if(f()!==false)requestAnimationFrame(st)};requestAnimationFrame(st)};
@@ -77,7 +77,7 @@ async function stAnalyse(){
   peStop();$('stmsg').textContent='Analyse complète de « '+A.name+' » et « '+B.name+' »…';$('stres').hidden=true;
   try{for(const[it,k]of[[A,'ra'],[B,'rb']]){const buf=await AC.decodeAudioData(await it.f.arrayBuffer());ST[k]=analyseBuf(buf);ST[k].tg=it.r&&it.r.tg}}catch(e){$('stmsg').textContent='Impossible d\'analyser ces fichiers.';return}
   ST.A=A;ST.B=B;ST.ra.gf=famOf(A.r,A.id);ST.rb.gf=famOf(B.r,B.id);ST.loaded='';refreshLib();
-  ST.lock={exit:0,entry:0};ST.duoId=null;ST.P=planPair(ST.ra,ST.rb,{tb:PREF.tb,skipIntro:PREF.si,drop:PREF.da||PREF.amb=='chaud'});
+  ST.lock={exit:0,entry:0};ST.duoId=null;ST.P=planPair(ST.ra,ST.rb,{propre:PREF.style!='festif',tb:PREF.tb,skipIntro:PREF.si,drop:PREF.da||PREF.amb=='chaud'});
   if(!ST.P){$('stmsg').textContent='Tempo non détecté sur l\'un des deux morceaux.';return}
   $('stmsg').textContent='';$('stres').hidden=false;$('stname').value=A.name+' → '+B.name;stRender();
 }

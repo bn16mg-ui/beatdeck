@@ -187,6 +187,7 @@ function renderIA(){
   QA('#pal_ia [data-amb]').forEach(b=>{b.classList.toggle('on',b.dataset.amb==PREF.amb);b.classList.add('ai')});
   $('iaVal').classList.toggle('on',!!PREF.valider);$('iaVal').classList.add('ok');
   $('iaBac').innerHTML=`<button data-bc=""${!PREF.bac?' class="on ai"':''}>Toute ma musique</button>`+Object.keys(BACS).map(n=>`<button data-bc="${esc(n)}"${PREF.bac==n?' class="on ai"':''}>${esc(n)}</button>`).join('')+(Object.keys(BACS).length?'':'<small class="mu">Crée des bacs dans Morceaux (bouton « Bac » sur chaque morceau).</small>');
+  QA('#pal_ia [data-sty]').forEach(b=>{b.classList.toggle('on',b.dataset.sty==(PREF.style||'propre'));b.classList.add('ai')});QA('#pal_ia [data-anim]').forEach(b=>{b.classList.toggle('on',b.dataset.anim==(PREF.anim||'discret'));b.classList.add('ai')});QA('#pal_ia [data-bloc]').forEach(b=>{b.classList.toggle('on',+b.dataset.bloc==(PREF.bloc??5));b.classList.add('ai')});$('iaRet').classList.toggle('on',!!PREF.retour);$('iaRet').classList.add('ok');
   QA('#pal_ia [data-ex]').forEach(b=>{b.classList.toggle('on',b.dataset.ex==(PREF.ex||'stricte'));b.classList.add('ai')});
   [['iaAp','ap'],['iaDa','da'],['iaFx','fx'],['iaAf','af']].forEach(([id,k])=>{$(id).classList.toggle('on',!!PREF[k]);$(id).classList.add('ok')});
 }
@@ -205,6 +206,10 @@ function initIA(){
   $('iaNow').onclick=()=>{if(AUTO.on){AUTO.mixNow=1;toast('Mix lancé')}else aiMix(true)};
   $('iaPlanBtn').onclick=iaPlan;
   $('iaSugg').onclick=()=>openSugg(live());
+  QA('#pal_ia [data-sty]').forEach(b=>b.onclick=()=>{PREF.style=b.dataset.sty;if(PREF.style=='festif')PREF.fx=true;else PREF.fx=false;savePref();D.forEach(d=>d.plan=null);renderIA();toast(PREF.style=='propre'?'Transitions propres : longs mélanges sur les fins de phrase, effets rares':'Transitions festives : plus d\'effets')});
+  QA('#pal_ia [data-anim]').forEach(b=>b.onclick=()=>{PREF.anim=b.dataset.anim;savePref();renderIA()});
+  QA('#pal_ia [data-bloc]').forEach(b=>b.onclick=()=>{PREF.bloc=+b.dataset.bloc;savePref();renderIA()});
+  $('iaRet').onclick=()=>{PREF.retour=!PREF.retour;savePref();renderIA()};
   $('iaVal').onclick=()=>{PREF.valider=!PREF.valider;savePref();renderIA();toast(PREF.valider?'Je te montrerai chaque transition AUTO avant de la lancer':'Les transitions AUTO partent sans attendre')};
   $('iaBac').onclick=e=>{const b=e.target.closest('button');if(!b)return;PREF.bac=b.dataset.bc;savePref();renderIA();D.forEach(d=>{if(d.a.paused&&d.cur&&AUTO.on)d.done=1});toast(PREF.bac?'Je pioche seulement dans « '+PREF.bac+' »':'Je pioche dans toute ta musique')};
   QA('#pal_ia [data-ex]').forEach(b=>b.onclick=()=>{PREF.ex=b.dataset.ex;savePref();renderIA();D.forEach(d=>{if(d.a.paused&&d.cur&&!d.done&&AUTO.on)d.done=1});toast('Exigence : '+b.textContent)});

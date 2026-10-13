@@ -22,6 +22,7 @@ button.on.ai{--c:var(--ai)}button.on.ok{--c:var(--ok)}
 .hb.danger{background:#3a1418;border-color:#7a2630;color:#ffb3b8}
 .hb.danger.vif{background:var(--bad);color:#fff;box-shadow:0 0 20px var(--bad)}
 #au.on{--c:var(--ai)}
+#garde.on{--c:#ff6f9f}
 #bEdit.on{--c:var(--ai)}
 
 #waves{position:absolute;left:24px;right:24px;top:76px;height:236px;display:flex;flex-direction:column;gap:8px}

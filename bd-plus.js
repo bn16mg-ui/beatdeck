@@ -36,11 +36,11 @@ let HIST=LS.get('bd5_hist',[]);
 const saveHist=()=>{if(HIST.length>300)HIST=HIST.slice(-300);LS.set('bd5_hist',HIST)};
 function logLecture(d){
   if(!d.cur||d.logged)return;d.logged=true;const o=D[1-d.i];
-  HIST.push({t:Date.now(),id:d.cur.id,name:d.name,deck:d.i+1,bpm:d.bpm?+(d.bpm*rateOf(d)).toFixed(1):0,prev:o.cur&&!o.a.paused?{id:o.cur.id,name:o.name}:null,tech:null,note:0});saveHist();
+  if(typeof AUTO!='undefined')AUTO.played.add(d.cur.id);HIST.push({t:Date.now(),id:d.cur.id,name:d.name,deck:d.i+1,bpm:d.bpm?+(d.bpm*rateOf(d)).toFixed(1):0,prev:o.cur&&!o.a.paused?{id:o.cur.id,name:o.name}:null,tech:null,note:0});saveHist();
 }
 let noteT=0,noteCtx=null;
 function apresTransition(L,N,nom){
-  const a=D[L],b=D[N];AUTO.lastTech=nom;
+  const a=D[L],b=D[N];AUTO.lastTech=nom;retourTempo(N);
   const h=[...HIST].reverse().find(x=>b.cur&&x.id==b.cur.id&&Date.now()-x.t<120000);
   if(h){h.tech=nom;if(!h.prev&&a.cur)h.prev={id:a.cur.id,name:a.name};saveHist()}
   if(!a.cur||!b.cur)return;
@@ -261,7 +261,51 @@ setInterval(()=>{
 setInterval(majRec,1000);
 
 /* ---------- branchements ---------- */
+/* ===== « Garder ce morceau » : le public aime, on reste dessus aussi longtemps que tu veux =====
+   Avant la fin du morceau (ou avant son outro), l'appli revient au début du dernier refrain,
+   sur une fin de phrase (16 temps), pour que le saut tombe en rythme. Autant de tours que tu veux. */
+const GARDE={on:false,deck:-1,id:null,tours:0};
+function majGarde(){const b=$('garde');if(!b)return;b.classList.toggle('on',GARDE.on);b.textContent=GARDE.on?'♥ GARDÉ'+(GARDE.tours?' ×'+(GARDE.tours+1):''):'♥ GARDER'}
+function setGarde(on){
+  if(on){
+    if(transitionEnCours()){toast('Une transition est en cours : réessaie juste après');return}
+    const L=live(),d=D[L];if(!d.cur||d.a.paused||!d.grid){toast('Lance d\'abord un morceau');return}
+    const j=jobActif('auto-arm');if(j)j.stop();
+    Object.assign(GARDE,{on:true,deck:L,id:d.cur.id,tours:0});d.plan=null;
+    toast('Je garde « '+d.name+' » : avant la fin, je reviens au refrain en rythme. Réappuie pour repartir.');
+  }else if(GARDE.on){
+    GARDE.on=false;const g=jobActif('garde');if(g)g.stop();const o=D[GARDE.deck];
+    if(o&&o.cur&&!o.a.paused){o.dl=o.a.currentTime+32*beatLen(o);o.plan=null;o.valideN=null}
+    toast(AUTO.on?'C\'est reparti : le mix vers le suivant part au prochain bon moment':'Morceau libéré : il ira jusqu\'à sa fin');
+  }
+  majGarde();
+}
+function gardePoints(d){
+  const r=d.r,beat=beatLen(d),ph=16*beat,dur=d.a.duration||(r&&r.dur)||0;if(!dur||!beat)return null;
+  const S=r&&r.bpm?structure(r):null;
+  let lim=dur-20;const out=S&&S.find(s=>s.k=='outro'&&s.t0>dur*.6);if(out)lim=Math.min(lim,out.t0);
+  let tgt=null,quoi='refrain';
+  if(r&&r.ref&&r.ref.length){const R=r.ref.filter(([a])=>a<lim-2*ph);if(R.length)tgt=R[R.length-1][0]}
+  if(tgt==null&&S){const s=S.filter(s=>(s.k=='drop'||s.k=='main')&&s.t0<lim-2*ph);if(s.length){tgt=s[s.length-1].t0;quoi='passage fort'}}
+  if(tgt==null){tgt=dur*.3;quoi='milieu du morceau'}
+  tgt=snapBeat(d,tgt);const k=Math.floor((lim-tgt)/ph);if(k<2)return null;
+  return{tgt,src:tgt+k*ph,quoi};
+}
+setInterval(()=>{
+  if(!GARDE.on)return;const d=D[GARDE.deck];
+  if(!d||!d.cur||d.cur.id!==GARDE.id){GARDE.on=false;majGarde();return}
+  if(d.a.paused||!d.grid||jobActif('garde'))return;
+  const g=gardePoints(d);if(!g)return;
+  const pos=posOf(d),bar=4*beatLen(d);let src=g.src;
+  if(pos>src-.3){src=d.off+Math.ceil((pos-d.off)/bar+.05)*bar} // activé trop tard : saut à la prochaine mesure
+  if(src-pos>6)return;
+  const w=(src-pos)/rateOf(d)*1000,j=new Job('Garder ce morceau',{cle:'garde',deck:d.i});
+  j.later(()=>{if(!GARDE.on){j.end();return}if(d.lp)killLoop(d);d.a.currentTime=g.tgt;d.plan=null;GARDE.tours++;majGarde();coach('♥ Je reviens au '+g.quoi+' (tour '+(GARDE.tours+1)+')',0,4000);j.end()},Math.max(0,w-10));
+},250);
+F('Soirée','garder','Garder ce morceau (le public aime)','GARDER','b','Reste sur le morceau aussi longtemps que tu veux : le mode AUTO ne change plus de morceau, et avant la fin l\'appli revient au refrain en rythme. Réappuie pour repartir vers le morceau suivant.',[],{run:()=>setGarde(!GARDE.on),on:()=>GARDE.on});
+
 function initPlus(){
+  $('garde').onclick=()=>setGarde(!GARDE.on);majGarde();
   $('gu').onclick=()=>setGuide(!GUIDE.on);$('rec').onclick=recToggle;$('lock').onclick=()=>setVerrou(!VERROU);
   $('note').onclick=e=>{const b=e.target.closest('button');if(b)noter(+b.dataset.nt)};
   $('waves').addEventListener('click',e=>{const b=e.target.closest('[data-tap]');if(b)tapTempo(+b.dataset.tap)});
@@ -277,3 +321,48 @@ function initPlus(){
   D.forEach(d=>d.a.addEventListener('playing',()=>logLecture(d)));
   renderBacs();
 }
+
+/* ===== 5.3 · comme un vrai DJ ===== */
+/* retour progressif au tempo d'origine après une transition (évite de rester accéléré toute la soirée) */
+function retourTempo(N){
+  const d=D[N],r0=d.rate;if(!PREF.retour||Math.abs(r0-1)<.004||Math.abs(r0-1)>.08)return;
+  const j=new Job('Retour au tempo d\'origine',{cle:'glide'+N,deck:N,auto:true}),t0=performance.now(),T=64*wallBeat(d)*1000;d.syncLock=false;
+  j.frame(()=>{if(!D[1-N].a.paused){j.end();return false}const k=Math.min(1,(performance.now()-t0)/T);d.rate=lerp(r0,1,smth(0,1,k));applyRate(d);if(k>=1){j.end();return false}});
+}
+/* animation pendant les morceaux (mode AUTO) : seulement aux moments musicaux qui s'y prêtent, jamais pendant un refrain */
+const ANIM={last:0};
+setInterval(()=>{
+  if(!AUTO.on||PREF.anim=='non'||transitionEnCours()||jobActif('anim')||jobActif('auto-arm'))return;
+  const L=live(),d=D[L];if(d.a.paused||!d.grid||!d.r||d.lp)return;
+  const r=d.r,S=structure(r);if(!S)return;const pos=posOf(d),beat=beatLen(d),now=performance.now();
+  if(now-ANIM.last<(PREF.anim=='normal'?25000:45000))return;
+  if(d.plan&&d.plan.exit&&d.plan.exit-pos<25&&d.plan.exit-pos>-5)return;
+  if(inRef(r,pos,0))return;
+  d.animDone=d.animDone||new Set();
+  const nb=nextBeat(d,pos),wait=Math.max(0,(nb-pos)/rateOf(d)*1000),fire=(nom,f)=>{ANIM.last=now;const j=new Job(nom,{cle:'anim',deck:L,auto:true});j.later(()=>{f(j)},wait);j.later(()=>j.end(),wait+20*wallBeat(d)*1000)};
+  for(let k=1;k<S.length;k++){const s=S[k],ah=(s.t0-pos)/beat;
+    if(s.k=='drop'&&S[k-1].k!='drop'&&ah>7.5&&ah<=10&&!d.animDone.has('d'+s.t0)){d.animDone.add('d'+s.t0);const n=Math.max(4,Math.round((s.t0-nb)/beat));
+      fire('Montée avant le drop',()=>{runBinding({fn:'balayage_haut',deck:String(L+1),p:{duree:n,prof:.55,forme:'a'}},null,{t:'press'});if(PREF.anim=='normal')riser(n*wallBeat(d))});return}
+    if(PREF.anim=='normal'&&s.k=='break'&&ah>1&&ah<=2.6&&!d.animDone.has('b'+s.t0)){d.animDone.add('b'+s.t0);fire('Écho sur le break',()=>echoSend(d,{duree:wallBeat(d),retard:.75,retour:.5}));return}
+  }
+  if(PREF.anim=='normal'){const sc=secAt(S,pos),ph=Math.round((pos-d.off)/beat)%64,ah=64-ph;
+    if(sc&&sc.k=='main'&&ah>=2&&ah<=3&&!d.animDone.has('g'+Math.round(pos/10))){d.animDone.add('g'+Math.round(pos/10));fire('Hachage en fin de phrase',()=>runBinding({fn:'gate',deck:String(L+1),p:{div:.25,duree:2}},null,{t:'press'}))}}
+},300);
+
+/* fonctions « soirée » à mettre sur tes touches */
+F('Soirée','chant_public','Laisser chanter le public','CHANTEZ !','b','Coupe le son (ou ne garde que les voix, approximativement) pendant 1 ou 2 mesures, à partir de la prochaine mesure, puis revient pile sur le temps.',[['mesures','Durée',1,{o:[[1,'1 mesure'],[2,'2 mesures'],[4,'4 mesures']]}],['mode','Ce qu\'on coupe','tout',{o:[['tout','Tout le son'],['voix','Graves et aigus (garde surtout les voix)']]}]],{
+  run:c=>{const d=c.d;if(!deckReady(d,1)||!d.grid)return;const bar=4*beatLen(d),pos=posOf(d),nb=d.off+Math.ceil((pos-d.off)/bar-1e-6)*bar,w=(nb-pos)/rateOf(d)*1000,len=c.p.mesures*bar/rateOf(d)*1000;
+    const j=new Job('Laisser chanter',{cle:'mute'+c.i,deck:c.i}),on=v=>{if(c.p.mode=='voix'){d.kill.low=v;d.kill.hi=v;applyDeck(d)}else setMute(d,v)};
+    j.onStop(()=>on(0));j.later(()=>on(1),w);j.later(()=>j.end(),w+len);toast('Coupure pour le public à la prochaine mesure')}});
+F('Soirée','effet_auto','Effet intelligent (choisi selon le moment)','EFFET IA','b','L\'appli choisit l\'effet qui colle au passage : montée de filtre si un drop arrive, écho si un break arrive, sinon un court hachage en rythme.',[],{
+  run:c=>{const d=c.d;if(!deckReady(d,1)||!d.grid)return;const r=d.r,S=r&&structure(r),pos=posOf(d),beat=beatLen(d),dk=String(c.i+1);
+    const nx=S&&S.find(s=>s.t0>pos+beat&&s.t0<pos+16*beat&&(s.k=='drop'||s.k=='break'));
+    if(nx&&nx.k=='drop'){const n=Math.max(2,Math.round((nx.t0-nextBeat(d,pos))/beat));runBinding({fn:'balayage_haut',deck:dk,p:{duree:n,prof:.6,forme:'a'}},null,{t:'press'});toast('Montée de filtre jusqu\'au drop ('+n+' temps)')}
+    else if(nx&&nx.k=='break'&&(nx.t0-pos)/beat<=4){const w=Math.max(0,(nx.t0-beat-pos)/rateOf(d)*1000),j=new Job('Écho avant le break',{cle:'fxia'+c.i,deck:c.i});j.later(()=>{echoSend(d,{duree:wallBeat(d),retard:.75});j.end()},w);toast('Écho sur le dernier temps avant le break')}
+    else{runBinding({fn:'gate',deck:dk,p:{div:.25,duree:2}},null,{t:'press'});toast('Hachage en rythme sur 2 temps')}}});
+F('Soirée','refrain_rejouer','Rejouer le refrain','RE-REFRAIN','b','Au prochain temps fort, revient au début du refrain (estimé) pour rester sur la chanson.',[],{
+  run:c=>{const d=c.d,r=d.r;if(!deckReady(d,1)||!d.grid)return;if(!r||!r.ref||!r.ref.length){toast('Aucun refrain repéré dans ce morceau');return}
+    const pos=posOf(d),R=[...r.ref].reverse().find(([a])=>a<pos-4)||r.ref[0],bar=4*beatLen(d),nb=d.off+Math.ceil((pos-d.off)/bar-1e-6)*bar,w=(nb-pos)/rateOf(d)*1000;
+    const j=new Job('Rejouer le refrain',{cle:'saut'+c.i,deck:c.i});j.later(()=>{if(d.lp)killLoop(d);d.a.currentTime=snapBeat(d,R[0]);if(d.plan){d.plan=null;d.dl=null}j.end()},w-10);toast('Je rejoue le refrain au prochain temps fort')}});
+F('Soirée','prolonger','Rester sur ce morceau (AUTO)','PROLONGER','b','Le mode AUTO reste 32 temps de plus sur le morceau en cours, sans couper le refrain.',[],{
+  run:c=>{const d=D[live()];if(d.a.paused)return;d.dl=(d.dl&&d.dl<1e8?Math.max(d.dl,d.a.currentTime):d.a.currentTime)+32*beatLen(d);d.plan=null;d.valideN=null;const j=jobActif('auto-arm');if(j)j.stop();toast('Je reste sur ce morceau 32 temps de plus')}});
