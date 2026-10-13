@@ -23,14 +23,21 @@ function lireStructure(s){
   for(let p=1;p<P;p++){if(type[p]=='fort'&&type[p-1]!='fort'&&PE[p]>=1.15*PE[p-1])drops.push(p);if(type[p-1]=='fort'&&PE[p]<=.82*PE[p-1])breaks.push(p)}
   let lastFort=-1;type.forEach((x,p)=>{if(x=='fort')lastFort=p});
   let k0=E.findIndex(v=>v>=.25);if(k0<0)k0=0;
-  const S={bar,beat:bar/4,off,P,PE,PL,type,t,drops,breaks,outro:lastFort>=0&&lastFort<P-1?lastFort+1:null,tDebut:off+k0*bar,dur:m.dur};
+  // zones de voix ou de mélodie (estimation) : « hauteur de note » dans les médiums, comparée au reste du même morceau
+  let PV=PE.map(()=>0);
+  if(m.st.T){const t=[...m.st.T].sort((p,q)=>p-q),lo=t[Math.floor(t.length*.25)],hi=t[Math.floor(t.length*.9)]||1;
+    const V=m.st.T.map((v,k)=>E[k]<.15?0:clamp((v-lo)/((hi-lo)||1)));PV=PE.map((_,p)=>moy(V,p))}
+  const seuilV=.55;
+  const voix=PV.map(v=>v>=seuilV),basse=PL.map(v=>v>=.45);
+  const S={bar,beat:bar/4,off,P,PE,PL,PV,voix,basse,type,t,drops,breaks,outro:lastFort>=0&&lastFort<P-1?lastFort+1:null,tDebut:off+k0*bar,dur:m.dur,
+    pa:tt=>clamp(Math.floor((tt-off)/(16*bar/4)),0,P-1)};
   STRC[k]=S;return S;
 }
 const fmtT=t=>fmt(Math.max(0,t));
 
 /* ---------- 2. proposer des transitions pour un duo ---------- */
-const NOMT={echo_out:'Écho Out',eq_swap:'Échange des basses · 16 temps',mix_long:'Mix long · 32 temps',filtre_out:'Filtre de sortie · 8 temps',coupure:'Coupure nette',boucle_out:'Boucle Out'};
-const TEMPS_A={echo_out:6,eq_swap:18,mix_long:34,filtre_out:10,coupure:2,boucle_out:10};   // temps de A utilisés après le point de sortie
+const NOMT={echo_out:'Écho Out',reverb_out:'Réverb Out',eq_swap8:'Échange des basses rapide · 8 temps',eq_swap:'Échange des basses · 16 temps',mix_long:'Mix long · 32 temps',filtre_out:'Filtre de sortie · 8 temps',filtre_in:'Entrée filtrée (teaser) · 16 temps',coupure:'Coupure nette',boucle_out:'Boucle Out',frein:'Frein vinyle',copie:'🎬 Copiée de la vidéo (DJ)'};
+const TEMPS_A={echo_out:6,reverb_out:6,eq_swap8:10,eq_swap:18,mix_long:34,filtre_out:10,filtre_in:18,coupure:2,boucle_out:10,frein:4,copie:24};   // temps de A utilisés après le point de sortie
 // meilleurs points de sortie du 1er morceau (débuts de phrase de 16 temps)
 function sorties(S,tech){
   const L=[],n=TEMPS_A[tech],blend=n>=10;
@@ -61,6 +68,7 @@ function infosPaire(a,b){
   return{g,ton,plusFort:B.en>A.en*1.15,plusCalme:B.en<A.en*.85};
 }
 function propositions(du){
+  if(typeof cerveau=='function'){const r=cerveau(du);if(r)return r}
   const a=sonDe(du.a),b=sonDe(du.b),SA=lireStructure(a),SB=lireStructure(b);if(!SA||!SB)return null;
   const I=infosPaire(a,b),E=entrees(SB),out=[];
   const essai=(tech,base,ent,riser,pourquoi)=>{
@@ -95,12 +103,15 @@ const dk=d=>' du deck '+(d.i+1);
 function gestesDe(tech,X,O,w){
   const b=wallBeat(X),x=X.i,o=O.i,G=[];const g=(t,ids,txt)=>G.push({t,ids:ids.filter(Boolean),txt});
   if(tech=='echo_out'){const e=boutonDe('echo',x);g(w,[e.id],'Appuie sur '+e.txt);g(w+2*b,['vol'+x,'play'+o,'xf'],'Baisse le VOLUME'+dk(X)+', appuie sur LECTURE'+dk(O)+' et pousse le crossfader vers le deck '+(o+1));}
-  else if(tech=='eq_swap'||tech=='mix_long'){const N=tech=='eq_swap'?16:32;
+  else if(tech=='reverb_out'){const e=boutonDe('reverb',x);g(w,[e.id],'Appuie sur '+e.txt);g(w+2*b,['vol'+x,'play'+o,'xf'],'Baisse le VOLUME'+dk(X)+', appuie sur LECTURE'+dk(O)+' et pousse le crossfader vers le deck '+(o+1));}
+  else if(tech=='frein'){const e=boutonDe('frein',x);g(w,[e.id],'Appuie sur '+e.txt);g(w+2*b,['play'+o,'xf'],'Appuie sur LECTURE'+dk(O)+' et crossfader vers le deck '+(o+1));}
+  else if(tech=='filtre_in'){g(w,['play'+o,'flt'+o],'Appuie sur LECTURE'+dk(O)+' avec son FILTRE tout à gauche');g(w+b,['xf'],'Pousse doucement le crossfader vers le milieu');g(w+16*b,['flt'+o,'xf'],'FILTRE'+dk(O)+' au milieu d\'un coup et crossfader vers le deck '+(o+1));g(w+17*b,['play'+x],'Arrête le deck '+(x+1)+' (LECTURE)');}
+  else if(tech=='eq_swap'||tech=='mix_long'||tech=='eq_swap8'){const N=tech=='eq_swap'?16:tech=='eq_swap8'?8:32;
     g(Math.max(0,w-2*b),['low'+o],'Tourne GRAVES'+dk(O)+' tout à gauche');g(w,['play'+o],'Appuie sur LECTURE'+dk(O));
     g(w+b,['xf'],'Pousse doucement le crossfader vers le milieu');g(w+N/2*b-b/2,['low'+x,'low'+o],'Échange les graves : GRAVES'+dk(X)+' à gauche, GRAVES'+dk(O)+' au milieu');
     g(w+N/2*b+b,['xf'],'Finis de pousser doucement le crossfader vers le deck '+(o+1));g(w+N*b,['play'+x],'Arrête le deck '+(x+1)+' (LECTURE)');}
   else if(tech=='filtre_out'){g(w,['play'+o],'Appuie sur LECTURE'+dk(O));g(w+b,['flt'+x,'xf'],'Tourne lentement FILTRE'+dk(X)+' vers la gauche et pousse le crossfader vers le deck '+(o+1));g(w+8*b,['play'+x],'Arrête le deck '+(x+1)+' (LECTURE)');}
-  else if(tech=='coupure'){g(Math.max(0,w-4*b),['play'+o,'xf'],'Prépare ta main sur LECTURE'+dk(O)+' et sur le crossfader');g(w,['play'+o,'xf'],'MAINTENANT : LECTURE'+dk(O)+' et crossfader d\'un coup vers le deck '+(o+1));g(w+b,['play'+x],'Arrête le deck '+(x+1)+' (LECTURE)');}
+  else if(tech=='coupure'){g(Math.max(0,w-4*b),['play'+o,'xf'],'Prépare ta main sur LECTURE'+dk(O)+' et sur le crossfader');g(w,['play'+o,'xf'],'LECTURE'+dk(O)+' et crossfader d\'un coup vers le deck '+(o+1));g(w+b,['play'+x],'Arrête le deck '+(x+1)+' (LECTURE)');}
   else if(tech=='boucle_out'){const l=boutonDe('boucle4',x);g(w,[l.id],'Appuie sur '+l.txt);g(w+4*b,[l.id],'Tapote '+l.txt+' à chaque fois que la boucle raccourcit');g(w+8*b,['play'+o,'xf'],'Appuie sur LECTURE'+dk(O)+' et crossfader vers le deck '+(o+1));g(w+8.5*b,['play'+x],'Arrête le deck '+(x+1)+' (LECTURE)');}
   return G;
 }
@@ -137,8 +148,8 @@ function finAuto(){
   [0,1].forEach(i=>{VAL['vol'+i]=D[i].k.vol;VAL['low'+i]=D[i].k.low;VAL['hi'+i]=D[i].k.hi;VAL['flt'+i]=D[i].k.flt;['vol','low','hi','flt'].forEach(k=>dessiner(k+i))});VAL.xf=G.xf;dessiner('xf');
 }
 function lancerAuto(X,O,plan,w,ecoute){
-  const j=TECH[plan.tech]&&TECH[plan.tech](X,O,w,{entry:plan.entry,riser:plan.riser,silence:true});if(!j)return null;
-  AUTO.job=j;AUTO.decks=[X.i,O.i];guider(gestesDe(plan.tech,X,O,w),X);AUTO.msg='';
+  const j=TECH[plan.tech]&&TECH[plan.tech](X,O,w,{entry:plan.entry,riser:plan.riser,copie:plan.copie,silence:true});if(!j)return null;
+  AUTO.job=j;AUTO.decks=[X.i,O.i];guider(plan.tech=='copie'?gestesCopie(X,O,w,plan.copie||{}):gestesDe(plan.tech,X,O,w),X);AUTO.msg='';
   if(!ecoute)AUTO.msg='';return j;
 }
 function autoTick(){
@@ -200,8 +211,8 @@ function effetEcho(X,w,b){
 
 /* ---------- 5. préparer la transition d'un duo (écran) ---------- */
 const PREP={du:null,props:[],ouvert:-1};
-function ouvrirPrep(id){const du=DUOS.find(d=>d.id==id)||PROPOS.find(d=>d.id==id);if(!du)return;PREP.du=du;PREP.props=propositions(du)||[];PREP.ouvert=-1;$('prep').hidden=false;rendrePrep()}
-function etoiles(s){const mx=Math.max(...PREP.props.map(p=>p.score),.01),n=clamp(Math.round(5*s/mx),1,5);return'★'.repeat(n)+'☆'.repeat(5-n)}
+function ouvrirPrep(id){const du=DUOS.find(d=>d.id==id)||PROPOS.find(d=>d.id==id);if(!du)return;PREP.du=du;PREP.props=propositions(du)||[];if(du.trans&&du.trans.copie)PREP.props.unshift(Object.assign({},du.trans));PREP.ouvert=-1;$('prVid').hidden=true;$('prep').hidden=false;rendrePrep()}
+function etoiles(s){if(s>=9)return'★★★★★';const mx=Math.max(...PREP.props.filter(p=>!p.video).map(p=>p.score),.01),n=clamp(Math.round(5*s/mx),1,5);return'★'.repeat(n)+'☆'.repeat(5-n)}
 function frise(S,mark,col){
   if(!S)return'';const w=100/S.P;
   return`<div class="frise">${S.type.map((t,p)=>`<i class="${t}" style="left:${p*w}%;width:${w}%;height:${Math.round(20+70*S.PE[p])}%"></i>`).join('')}${mark!=null?`<b style="left:${clamp((mark-S.off)/(S.P*4*S.bar))*100}%;background:${col}"></b>`:''}</div>`;
@@ -215,13 +226,13 @@ function rendrePrep(){
   $('prL').innerHTML=PREP.props.map((P,k)=>{const ok=v&&v.tech==P.tech&&Math.abs(v.exit-P.exit)<.1&&Math.abs(v.entry-P.entry)<.1;
     return`<div class="prop${ok?' ok':''}" data-k="${k}">
       <div class="ph"><b>${esc(NOMT[P.tech])}</b><span class="et">${etoiles(P.score)}</span>${P.perso?'<span class="tag">modifiée</span>':''}${ok?'<span class="tag v">validée</span>':''}</div>
-      <div class="fr"><small>${esc(a.nom)} · sortie à ${fmtT(P.exit)}</small>${frise(SA,P.exit,'#ffd27a')}<small>${esc(b.nom)} · entrée à ${fmtT(P.entry)}</small>${frise(SB,P.entry,'#5ef0d2')}</div>
+      ${P.resume?`<p class="resume">${esc(P.resume)}</p>`:''}<div class="fr"><small>${esc(a.nom)} · sortie à ${fmtT(P.exit)}</small>${frise(SA,P.exit,'#ffd27a')}<small>${esc(b.nom)} · entrée à ${fmtT(P.entry)}</small>${frise(SB,P.entry,'#5ef0d2')}</div>
       <ul>${P.raisons.map(r=>'<li>'+esc(r)+'</li>').join('')}${P.riser?'<li>+ montée de bruit (riser) juste avant l\'entrée</li>':''}</ul>
       <div class="row"><button data-pa="ecoute" class="${AUTO.ecoute&&AUTO.ecoute.k==k?'stop':''}">${AUTO.ecoute&&AUTO.ecoute.k==k?'■ Arrêter l\'écoute':'▶ Écouter'}</button><button data-pa="valide" class="fort">✓ Valider</button><button data-pa="modif">✎ Modifier</button></div>
       ${PREP.ouvert==k?`<div class="modif">
         <div class="row"><span>Sortie de « ${esc(a.nom)} » :</span><button data-pa="ex-">− 16 temps</button><b>${fmtT(P.exit)}</b><button data-pa="ex+">+ 16 temps</button></div>
         <div class="row"><span>Entrée de « ${esc(b.nom)} » :</span><button data-pa="en-">− 4 temps</button><b>${fmtT(P.entry)}</b><button data-pa="en+">+ 4 temps</button><button data-pa="en0">Au début</button></div>
-        <div class="row"><span>Technique :</span>${Object.keys(NOMT).map(t=>`<button data-pa="tech" data-t="${t}" class="${t==P.tech?'on':''}">${esc(NOMT[t])}</button>`).join('')}</div>
+        <div class="row"><span>Technique :</span>${Object.keys(NOMT).filter(t=>t!='copie'||P.tech=='copie').map(t=>`<button data-pa="tech" data-t="${t}" class="${t==P.tech?'on':''}">${esc(NOMT[t])}</button>`).join('')}</div>
         <label class="chk"><input type="checkbox" data-pa="riser" ${P.riser?'checked':''}> Montée de bruit (riser) juste avant l'entrée</label></div>`:''}
     </div>`}).join('');
 }
@@ -239,7 +250,7 @@ async function ecouter(k){
   await X.a.play().catch(()=>{});
   const w=(P.exit-posOf(X))/rateOf(X),j=lancerAuto(X,O,P,Math.max(.1,w),true);
   if(!j){finEcoute();toast('Cette transition n\'est pas possible avec ces deux morceaux');return}
-  AUTO.ecoute.t=setTimeout(finEcoute,(w+TEMPS_A[P.tech]*wallBeat(X)+10)*1000);
+  AUTO.ecoute.t=setTimeout(finEcoute,(w+(P.copie?P.copie.aFin+P.copie.bDebut+P.copie.montee+6:TEMPS_A[P.tech]*wallBeat(X)+10))*1000);
   toast('Écoute : la transition part dans '+Math.round(w)+' s');
 }
 function finEcoute(){if(!AUTO.ecoute)return;clearTimeout(AUTO.ecoute.t);const e=AUTO.ecoute;AUTO.ecoute=null;[...JOBS].forEach(j=>j.stop());D.forEach(d=>{pauseDeck(d)});guideEffacer();if(!$('prep').hidden)rendrePrep();return e}
@@ -249,13 +260,15 @@ function modifier(k,act,t){
   if(act=='ex-'||act=='ex+'){const s=act=='ex+'?1:-1,v=+(P.exit+s*16*SA.beat).toFixed(3);if(v<SA.beat*8||v+(TEMPS_A[P.tech]+4)*SA.beat>SA.dur-2){toast('Impossible : trop près du début ou de la fin du morceau');return}n.exit=v}
   if(act=='en-'||act=='en+'){const s=act=='en+'?1:-1,v=+(P.entry+s*4*SB.beat).toFixed(3);if(v<0||v>SB.dur*.8)return;n.entry=v}
   if(act=='en0')n.entry=+SB.tDebut.toFixed(3);
-  if(act=='tech'){const I=infosPaire(sonDe(du.a),sonDe(du.b));if((t=='eq_swap'||t=='filtre_out')&&I.g>8||t=='mix_long'&&I.g>8){toast('Tempos trop éloignés pour cette technique ('+nf(I.g,1)+' %)');return}
+  if(act=='tech'){if(t=='copie'&&!P.copie)return;const I=infosPaire(sonDe(du.a),sonDe(du.b));if(BLENDS[t]&&I.g>8){toast('Tempos trop éloignés pour cette technique ('+nf(I.g,1)+' %)');return}
     n.tech=t;if(P.exit+(TEMPS_A[t]+4)*SA.beat>SA.dur-2)n.exit=+(SA.dur-2-(TEMPS_A[t]+4)*SA.beat).toFixed(3)}
   if(act=='riser')n.riser=!P.riser;
+  n.resume=`À ${fmtT(n.exit)} : ${NOMT[n.tech]}, puis « ${sonDe(du.b).nom} » entre à ${fmtT(n.entry)}`;
   if(!n.raisons.includes('Modifiée par toi'))n.raisons=['Modifiée par toi'].concat(n.raisons.filter(r=>!/^Sortie de|^Entrée de/.test(r)));
   PREP.props[k]=n;rendrePrep();
 }
 function initAuto(){
+  $('bSuiv').onclick=()=>passerMaintenant();
   $('logo').addEventListener('pointerdown',tapeLogo);$('logo').classList.toggle('auto',AUTO.on);
   $('prX').onclick=()=>{finEcoute();$('prep').hidden=true;rendreDuos()};
   $('prep').addEventListener('pointerdown',e=>{if(e.target.id=='prep'){finEcoute();$('prep').hidden=true;rendreDuos()}});
@@ -263,7 +276,7 @@ function initAuto(){
     const b=e.target.closest('[data-pa]');if(!b)return;const act=b.dataset.pa,c=e.target.closest('[data-k]'),k=c?+c.dataset.k:-1;
     if(act=='retire'){delete PREP.du.trans;sauverDuos();rendrePrep();toast('Transition retirée');return}
     if(act=='ecoute'){ecouter(k);return}
-    if(act=='valide'){const P=PREP.props[k];if(PREP.du.propose&&!garderPropose(PREP.du))return;PREP.du.trans={tech:P.tech,exit:P.exit,entry:P.entry,riser:!!P.riser,valide:Date.now()};sauverDuos();rendrePrep();rendreDuos();toast('✓ Transition validée pour ce duo');return}
+    if(act=='valide'){const P=PREP.props[k];if(PREP.du.propose&&!garderPropose(PREP.du))return;PREP.du.trans=Object.assign({tech:P.tech,exit:P.exit,entry:P.entry,riser:!!P.riser,valide:Date.now()},P.copie?{copie:P.copie,raisons:P.raisons,resume:P.resume,score:P.score,video:true}:{});sauverDuos();rendrePrep();rendreDuos();toast('✓ Transition validée pour ce duo');return}
     if(act=='modif'){PREP.ouvert=PREP.ouvert==k?-1:k;rendrePrep();return}
     modifier(k,act,b.dataset.t);
   };
@@ -296,4 +309,38 @@ function htmlProposes(){
     return`<div class="duo prop2" data-pr="${esc(p.id)}"><div class="dt"><span class="d0">${esc(a.nom)}</span><i>→</i><span class="d1">${esc(b.nom)}</span><span class="tag">${Math.round(p.sc.s*100)} %</span></div>
       ${av?`<ul>${av.av.map(x=>'<li>'+esc(x)+'</li>').join('')}</ul>`:''}${pl?`<p class="cons">Meilleure transition : <b>${esc(NOMT[pl.tech])}</b> (sortie à ${fmt(pl.exit)}, entrée à ${fmt(pl.entry)})</p>`:''}
       <div class="row"><button data-act="pvoir" class="fort">🎚 Voir les transitions</button><button data-act="pgarde">✓ Garder ce duo</button><button data-act="prefus">✕ Pas bien</button></div></div>`}).join('')+'<h3 class="ptit">♥ Mes duos</h3>';
+}
+
+/* ---------- 7. ⏭ SUIVANT : passer à la musique suivante à n'importe quel moment ----------
+   La transition part tout de suite (au prochain début de phrase s'il arrive vite, sinon à la prochaine mesure)
+   et entre dans la bonne partie du morceau suivant pour que ce soit fluide. */
+function planPasser(X,O){
+  if(typeof cerveau=='function'&&X.sonId&&O.sonId&&X.grid){const B=beatLen(X),pos=posOf(X),r=rateOf(X),ph=16*B,bar=4*B,np=X.off+Math.ceil((pos-X.off)/ph-1e-6)*ph;
+    let st=(np-pos)/r<=6?np:X.off+Math.ceil((pos-X.off)/bar-1e-6)*bar;if((st-pos)/r<1.2)st+=bar;
+    const C=cerveau({a:X.sonId,b:O.sonId},{exitFixe:st});if(C&&C[0]&&(BLENDS[C[0].tech]?tempoProche(X,O):true))return Object.assign({},C[0],{pourquoi:(C[0].raisons.slice(-2).join(', ')||'transition choisie pour ce duo')})}
+  const sa=X.sonId&&sonDe(X.sonId),sb=O.sonId&&sonDe(O.sonId),SA=sa&&lireStructure(sa),SB=sb&&lireStructure(sb);
+  const r=rateOf(X),pos=posOf(X),B=beatLen(X);
+  let start=pos+.6*r;
+  if(X.grid){const ph=16*B,bar=4*B,np=X.off+Math.ceil((pos-X.off)/ph-1e-6)*ph;
+    start=(np-pos)/r<=6?np:X.off+Math.ceil((pos-X.off)/bar-1e-6)*bar;if((start-pos)/r<1.2)start+=bar}
+  const g=X.bpm&&O.bpm?Math.abs(foldR(X.bpm*rateOf(X),O.bpm)-1)*100:99;
+  const fort=SA?SA.type[clamp(Math.floor((pos-SA.off)/(16*SA.beat)),0,SA.P-1)]=='fort':false;
+  let dropB=null;if(SB){const p=SB.drops.find(p=>SB.t(p)<SB.dur*.6&&SB.t(p)>=16*SB.beat);if(p!=null)dropB=SB.t(p)}
+  const debutB=SB?SB.tDebut:0,reste=(X.a.duration||0)-start;
+  if(g<=8&&X.grid&&O.grid&&reste>18*B+3){
+    const entry=fort&&dropB!=null?dropB-16*SB.beat:debutB;   // le drop du suivant tombe juste à la fin du mélange
+    return{tech:'eq_swap',exit:start,entry:Math.max(0,entry),pourquoi:fort&&dropB!=null?'le suivant entre juste avant sa partie forte':'le suivant entre par son début'};
+  }
+  return{tech:'echo_out',exit:start,entry:fort&&dropB!=null?dropB:debutB,pourquoi:g>8?'tempos différents : écho propre':'peu de temps restant : écho propre'};
+}
+async function passerMaintenant(){
+  if(occupe()){toast('Une transition est déjà en cours');return'Une transition est déjà en cours'}
+  const L=live(),X=!D[L].a.paused?D[L]:D.find(d=>!d.a.paused);if(!X){toast('Aucune musique ne joue');return'Aucune musique ne joue'}
+  const O=D[1-X.i];if(!O.a.paused){toast('Les deux decks jouent déjà');return'Les deux decks jouent déjà'}
+  if(!O.a.src||O.joue){proposerDuo(X.i);for(let n=0;n<120&&(!O.a.src||O.chargement||O.joue);n++)await sleep(100)}
+  if(!O.a.src||O.chargement||O.joue){toast('Mets la musique suivante sur l\'autre deck');return'Mets la musique suivante sur l\'autre deck'}
+  if(occupe())return'Une transition est déjà en cours';
+  const P=planPasser(X,O),w=Math.max(.3,(P.exit-posOf(X))/rateOf(X));
+  const j=lancerAuto(X,O,P,w);if(!j){toast('Transition impossible');return'Transition impossible'}
+  const t='⏭ '+NOMT[P.tech]+' vers « '+O.nom+' » dans '+Math.max(1,Math.round(w))+' s ('+P.pourquoi+')';toast(t);return t;
 }

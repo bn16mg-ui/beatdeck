@@ -2,7 +2,7 @@
 /* ===== BeatDeck 6 · l'interface =====
    La platine The Next Beat by Tiësto SX1 dessinée à l'écran, commandes aux mêmes emplacements que la vraie.
    Chaque commande (à l'écran ou sur la platine) appelle commande(id, geste) dans bd-commandes.js. */
-const VERSION='6.6.0';
+const VERSION='6.9.0';
 const $=id=>document.getElementById(id),Q=(s,r=document)=>r.querySelector(s),QA=(s,r=document)=>[...r.querySelectorAll(s)];
 const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
 const esc=t=>String(t??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -194,7 +194,7 @@ function ciel(){
 
 /* ---------- démarrage ---------- */
 function demarrer(){
-  ciel();construire();ajuster();mix();initPlatine();initRaccourcis();initBib();initAuto();initTel();requestAnimationFrame(image);
+  ciel();construire();ajuster();mix();initPlatine();initRaccourcis();initBib();initAuto();initTel();initVideo();requestAnimationFrame(image);
   QA('.pan').forEach(p=>{p.addEventListener('pointerdown',e=>{if(e.target===p)p.hidden=true});QA('.x',p).forEach(x=>x.onclick=()=>p.hidden=true)});
   addEventListener('resize',ajuster);addEventListener('orientationchange',()=>setTimeout(ajuster,300));document.addEventListener('fullscreenchange',()=>setTimeout(ajuster,300));
   $('fs').onclick=()=>{const e=document.documentElement;document.fullscreenElement?document.exitFullscreen():e.requestFullscreen&&e.requestFullscreen().then(()=>{try{screen.orientation.lock('landscape')}catch(x){}}).catch(()=>{})};

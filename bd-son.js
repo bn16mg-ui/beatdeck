@@ -204,18 +204,38 @@ function keyOf(x,sr){
   all.sort((a,b)=>b.r-a.r);const best=all[0],sec=all.find(x=>x.n!=best.n);
   return{n:best.n,b:best.b,c:+clamp(((best.r-(sec?sec.r:0))-.02)/.12).toFixed(2)};
 }
-/* structure : énergie générale (E) et énergie des graves (L) mesure par mesure, de 0 à 1 */
+/* petite FFT (transformée de Fourier) pour regarder le spectre */
+function fft(re,im){const n=re.length;for(let i=1,j=0;i<n;i++){let b=n>>1;for(;j&b;b>>=1)j^=b;j^=b;if(i<j){[re[i],re[j]]=[re[j],re[i]];[im[i],im[j]]=[im[j],im[i]]}}
+  for(let len=2;len<=n;len<<=1){const a=-2*Math.PI/len,wr=Math.cos(a),wi=Math.sin(a);for(let i=0;i<n;i+=len){let cr=1,ci=0;for(let k=0;k<len/2;k++){const ur=re[i+k],ui=im[i+k],vr=re[i+k+len/2]*cr-im[i+k+len/2]*ci,vi=re[i+k+len/2]*ci+im[i+k+len/2]*cr;re[i+k]=ur+vr;im[i+k]=ui+vi;re[i+k+len/2]=ur-vr;im[i+k+len/2]=ui-vi;const t=cr*wr-ci*wi;ci=cr*wi+ci*wr;cr=t}}}}
+/* structure, mesure par mesure (de 0 à 1) :
+   E = énergie générale · L = graves (< 150 Hz)
+   T = « hauteur de note » dans les médiums 250–2500 Hz (voix, ou mélodie tenue) ;
+       les percussions n'ont pas de hauteur de note, donc T reste bas sur les passages seulement rythmiques. */
 function structureOf(buf,bpm,off){
   if(!bpm)return null;
   const x=buf.getChannelData(0),sr=buf.sampleRate,bar=4*60/bpm,nb=Math.floor((buf.duration-off)/bar);if(nb<8)return null;
-  const pas=4,a=Math.exp(-2*Math.PI*150/(sr/pas));let lp=0;const E=[],L=[];
-  for(let k=0;k<nb;k++){const s0=Math.floor((off+k*bar)*sr),s1=Math.min(x.length,Math.floor((off+(k+1)*bar)*sr));let se=0,sl=0,n=0;
-    for(let i=s0;i<s1;i+=pas){const v=x[i];lp=a*lp+(1-a)*v;se+=v*v;sl+=lp*lp;n++}E.push(Math.sqrt(se/(n||1)));L.push(Math.sqrt(sl/(n||1)))}
+  const aL=Math.exp(-2*Math.PI*150/sr),W=2048,han=new Float32Array(W);for(let i=0;i<W;i++)han[i]=.5-.5*Math.cos(2*Math.PI*i/W);
+  const k0=Math.floor(250*W/sr),k1=Math.ceil(2500*W/sr),re=new Float32Array(W),im=new Float32Array(W);
+  const E=[],L=[],T=[];let lb=0;
+  for(let k=0;k<nb;k++){
+    const s0=Math.floor((off+k*bar)*sr),s1=Math.min(x.length,Math.floor((off+(k+1)*bar)*sr));let se=0,sl=0,n=0;
+    for(let i=s0;i<s1;i+=2){const v=x[i];lb=aL*lb+(1-aL)*v;se+=v*v;sl+=lb*lb;n++}
+    // 6 fenêtres dans la mesure : on garde seulement 250–2500 Hz puis on cherche une hauteur de note (120–400 Hz)
+    // par autocorrélation : une voix est périodique, une percussion ne l'est pas.
+    let tt=0,nt=0;const lmin=Math.floor(sr/400),lmax=Math.ceil(sr/120);
+    for(let f=0;f<6;f++){const st=s0+Math.floor((s1-s0-W)*f/5);if(st<0||st+W>x.length)continue;
+      for(let i=0;i<W;i++){re[i]=x[st+i]*han[i];im[i]=0}fft(re,im);
+      for(let q=0;q<W;q++){const qq=q<=W/2?q:W-q,p=qq>=k0&&qq<=k1?re[q]*re[q]+im[q]*im[q]:0;re[q]=p;im[q]=0}
+      fft(re,im);const r0=re[0];if(r0<=1e-9)continue;   // re = autocorrélation (à un facteur près)
+      let mx=0;for(let l=lmin;l<=lmax;l++){const v=re[l]/r0;if(v>mx)mx=v}
+      tt+=mx;nt++}
+    E.push(Math.sqrt(se/(n||1)));L.push(Math.sqrt(sl/(n||1)));T.push(nt?tt/nt:0);
+  }
   const norm=A=>{const t=[...A].sort((p,q)=>p-q),m=t[Math.floor(t.length*.95)]||1;return A.map(v=>+Math.min(1,v/m).toFixed(2))};
-  return{bar:+bar.toFixed(4),E:norm(E),L:norm(L)};
+  return{bar:+bar.toFixed(4),E:norm(E),L:norm(L),T:T.map(v=>+v.toFixed(3))};
 }
-/* analyse complète d'un morceau pour la bibliothèque (v2 : avec la structure) */
-const META_V=2;
+/* analyse complète d'un morceau pour la bibliothèque (v3 : structure + zones de voix) */
+const META_V=3;
 function analyseSon(buf){
   const t=analyseTempo(buf),x=buf.getChannelData(0);let sq=0,n=0;for(let i=0;i<x.length;i+=97){sq+=x[i]*x[i];n++}
   let key=null;try{key=keyOf(x,buf.sampleRate)}catch(e){}

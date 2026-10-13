@@ -57,6 +57,7 @@ document.querySelector('.tabs').onclick=e=>{const b=e.target.closest('button');i
 $('q').oninput=e=>{T.q=e.target.value;rendre()};
 $('liste').onclick=e=>{const b=e.target.closest('[data-a]'),l=e.target.closest('[data-id]');if(!b||!l)return;const id=l.dataset.id;
   if(b.dataset.a=='deck')envoyer({t:'deck',id,deck:+b.dataset.d});else if(b.dataset.a=='ensuite')envoyer({t:'ensuite',id});else if(b.dataset.a=='duo')envoyer({t:'duo',id})};
+$('suiv').onclick=()=>envoyer({t:'passer'});
 QA('[data-lec]').forEach(b=>b.onclick=()=>envoyer({t:'lecture',deck:+b.dataset.lec}));
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState=='visible'&&T.voulu&&(!T.conn||!T.conn.open))connecter(T.code)});
 

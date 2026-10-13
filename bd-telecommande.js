@@ -64,6 +64,7 @@ async function telRecu(c,m){
     else if(m.t=='lecture'){const i=+m.deck;if(i!==0&&i!==1)return;if(!D[i].a.src){rep('Aucune musique sur le deck '+(i+1),false);return}
       if(typeof occupe=='function'&&occupe()){rep('Une transition est en cours : attends la fin',false);return}
       commande('play'+i,{t:'press'});commande('play'+i,{t:'release'})}
+    else if(m.t=='passer'){const t=await passerMaintenant();rep(t||'OK',!!t&&t.startsWith('⏭'))}
     else if(m.t=='coucou'){telEnvoyerBib(c);telEnvoyerDecks()}
   }catch(e){console.error(e);rep('Action impossible',false)}
 }

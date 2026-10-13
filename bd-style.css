@@ -218,3 +218,9 @@ body.edition #sx1 .ctl.edsel{outline:4px solid var(--or);box-shadow:0 0 30px #ff
 
 .ptit{display:flex;align-items:center;gap:10px;font-size:15px;color:#cfc8ff;margin:12px 0 4px}.ptit button{padding:5px 10px;font-size:13px}
 .duo.prop2{border-style:dashed;border-color:#5ef0d266}.duo .tag{font-size:13px;font-weight:600}
+.hb.suiv{background:linear-gradient(90deg,#14806b,#2f7bff);color:#fff;border-color:transparent;margin-left:8px}
+.tel-suiv{width:100%;margin-top:10px;font-size:19px;padding:14px;background:linear-gradient(90deg,#14806b,#2f7bff);border-color:transparent;color:#fff}
+.resume{margin:6px 0;padding:8px 12px;border-left:3px solid var(--or);background:#0a0628;border-radius:8px;color:#fff;font-weight:600}
+
+.info.err{border-color:#ff6f9f;color:#ffc5d6}
+.vidrow{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:6px 0 8px}

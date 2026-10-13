@@ -86,6 +86,7 @@ const blendTech=(cle,N)=>(X,O,w,o={})=>{
   return j;
 };
 TECH.eq_swap=blendTech('eq_swap',16);
+TECH.eq_swap8=blendTech('eq_swap8',8);
 TECH.mix_long=blendTech('mix_long',32);
 TECH.filtre_out=(X,O,w,o={})=>{
   const j=new Job('filtre_out:'+X.i,[X.i,O.i]),b=wallBeat(X),entre=!!O.a.src&&O.a.paused,proche=entre&&entree(O,X,o);
@@ -123,6 +124,25 @@ TECH.frein=(X,O,w,o={})=>{
   j.later(()=>{X.a.preservesPitch=false;const t0=performance.now(),id=j.every(()=>{const k=clamp((performance.now()-t0)/(dur*1000));X.nudge=Math.max(.06,1-k);applyRate(X);if(k>=1)clearInterval(id)},25)},w*1000);
   if(entre){lancerA(O,j,w+dur,proche);j.later(()=>{G.xf=cote(O);VAL.xf=G.xf;mix();dessiner('xf')},(w+dur)*1000)}
   j.later(()=>{sortir(X);fin();j.end()},(w+dur)*1000);
+  return j;
+};
+TECH.reverb_out=(X,O,w,o={})=>{
+  const j=new Job('reverb_out:'+X.i,[X.i,O.i]),b=wallBeat(X),entre=!!O.a.src,proche=entree(O,X,o);
+  j.onStop(()=>{revSet(X,false);agReset(X)});
+  j.later(()=>revSet(X,true),w*1000);
+  j.later(()=>{agVers(X,0,0,b*1.5);if(entre){G.xf=cote(O);VAL.xf=G.xf;mix();dessiner('xf')}},(w+2*b)*1000);
+  if(entre)lancerA(O,j,w+2*b,proche);
+  j.later(()=>{revSet(X,false);sortir(X);j.end()},(w+2*b+3.5)*1000);
+  return j;
+};
+TECH.filtre_in=(X,O,w,o={})=>{     // le suivant monte étouffé sous le morceau en cours, puis s'ouvre d'un coup sur la phrase suivante
+  if(!O.a.src||!O.a.paused||!tempoProche(X,O))return null;
+  const j=new Job('filtre_in:'+X.i,[X.i,O.i]),b=wallBeat(X),N=16,proche=entree(O,X,o);
+  O.ov.flt=.1;O.ov.low=0;applyDeck(O);
+  j.onStop(()=>{delete O.ov.flt;delete O.ov.low;applyDeck(O)});
+  lancerA(O,j,w,proche);
+  j.later(()=>{xfVers(.5,N/2*b,j);ovVers(O,'flt',.1,.32,N*b,j)},w*1000);
+  j.later(()=>{delete O.ov.flt;delete O.ov.low;applyDeck(O);G.xf=cote(O);VAL.xf=G.xf;mix();dessiner('xf');sortir(X);j.end()},(w+N*b)*1000);
   return j;
 };
 // quand tu appuies sur un raccourci de transition : départ au prochain temps ou à la prochaine mesure
@@ -183,12 +203,13 @@ rc('repere1','Outils','REPÈRE 1','Repère 1',
 rc('repere2','Outils','REPÈRE 2','Repère 2','Comme le repère 1, pour un 2e endroit du morceau.',repere(1));
 rc('efface_rep','Outils','EFFACER REP.','Effacer les repères','Efface les repères 1 et 2 de ce deck.',{run(d){d.hc=[null,null];toast('Repères du deck '+(d.i+1)+' effacés')}});
 rc('debut','Outils','DÉBUT','Retour au début','Revient au tout début du morceau.',{run(d){if(!pret(d))return;killLoop(d);d.a.currentTime=0}});
+rc('passer','Outils','⏭ SUIVANT','Passer à la suivante maintenant','Lance tout de suite une transition fluide vers la musique de l\'autre deck (au prochain début de phrase ou à la prochaine mesure), en entrant dans la bonne partie du morceau suivant. Si l\'autre deck est vide, l\'appli y met la musique qui colle le mieux.',{run:()=>passerMaintenant(),on:()=>typeof occupe=='function'&&occupe()});
 rc('stop_fx','Outils','STOP EFFETS','Arrêter tous les effets','Arrête d\'un coup tous les raccourcis et effets en cours, et remet le son normal. La musique continue.',{run:()=>stopTout()});
 
 /* ---------- quels raccourcis sur quels boutons ---------- */
 const RACC_IDS=['cue','sync','vin','cas','fx','lpa','lpp','lpm','tmpm','tmpp'];
 const estRaccourci=id=>id=='mst'||RACC_IDS.some(r=>id==r+'0'||id==r+'1');
-const CONSEIL={cue:['echo_out','coupure'],sync:['sync',''],vin:['eq_swap','mix_long'],cas:['filtre_out','frein'],fx:['echo','reverb'],
+const CONSEIL={cue:['echo_out','coupure'],sync:['sync','passer'],vin:['eq_swap','mix_long'],cas:['filtre_out','frein'],fx:['echo','reverb'],
   lpa:['boucle4','boucle_out'],lpp:['roulement','riser'],lpm:['filtre_monte','flanger'],tmpm:['repere1','efface_rep'],tmpp:['repere2','debut'],mst:['stop_fx','']};
 let RACC=LS.get('bd6_racc',null);
 function racc(id){const r=RACC&&RACC[id];if(r)return r;const c=CONSEIL[id.replace(/[01]$/,'')];return c?{base:c[0],shift:c[1]}:{base:'',shift:''}}

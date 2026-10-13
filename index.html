@@ -5,13 +5,14 @@
 <title>BeatDeck</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="bd-style.css?v=6.6.0">
+<link rel="stylesheet" href="bd-style.css?v=6.9.0">
 </head><body>
 <canvas id="ciel"></canvas>
 <div id="vp"><div id="stage">
   <header id="top">
     <b id="logo">BEATDECK</b>
     <button class="hb bibb" id="bBib" title="Tes musiques et tes duos">🎵 Bibliothèque</button>
+    <button class="hb suiv" id="bSuiv" title="Passer à la musique suivante maintenant, avec une transition fluide">⏭ Suivant</button>
     <button id="plat" class="pill" title="Ta platine : connexion et configuration">Platine…</button>
     <span class="sp"></span>
     <span class="aide">Tiens SHIFT pour voir les raccourcis en jaune</span>
@@ -44,6 +45,8 @@
   <div class="ch2"><h2 id="prT"></h2><span class="sp"></span><button id="prX">Fermer</button></div>
   <div id="prV"></div>
   <p class="mu petit">Les propositions viennent de l'analyse des deux morceaux (estimation) : écoute-les, modifie-les si besoin, puis valide celle que tu préfères. « Écouter » joue les 12 secondes avant la transition puis la transition, avec le guide en bas de l'écran.</p>
+  <div class="row vidrow"><button id="prVidB" class="fort">🎬 Copier la transition d'une vidéo de DJ</button><span class="mu petit">Une vidéo où un DJ enchaîne ces deux mêmes musiques : l'appli retrouve ce qu'il a fait et le refait avec tes fichiers.</span></div>
+  <p id="prVid" class="info" hidden></p>
   <div id="prL"></div>
 </div></div>
 
@@ -91,13 +94,15 @@
 
 <script src="peerjs.min.js"></script>
 <script src="qrcode.js"></script>
-<script src="bd-interface.js?v=6.6.0"></script>
-<script src="bd-son.js?v=6.6.0"></script>
-<script src="bd-commandes.js?v=6.6.0"></script>
-<script src="bd-raccourcis.js?v=6.6.0"></script>
-<script src="bd-bibliotheque.js?v=6.6.0"></script>
-<script src="bd-auto.js?v=6.6.0"></script>
-<script src="bd-telecommande.js?v=6.6.0"></script>
-<script src="bd-platine.js?v=6.6.0"></script>
+<script src="bd-interface.js?v=6.9.0"></script>
+<script src="bd-son.js?v=6.9.0"></script>
+<script src="bd-commandes.js?v=6.9.0"></script>
+<script src="bd-raccourcis.js?v=6.9.0"></script>
+<script src="bd-bibliotheque.js?v=6.9.0"></script>
+<script src="bd-auto.js?v=6.9.0"></script>
+<script src="bd-cerveau.js?v=6.9.0"></script>
+<script src="bd-video.js?v=6.9.0"></script>
+<script src="bd-telecommande.js?v=6.9.0"></script>
+<script src="bd-platine.js?v=6.9.0"></script>
 <script>demarrer()</script>
 </body></html>

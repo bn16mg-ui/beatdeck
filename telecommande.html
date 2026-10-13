@@ -32,6 +32,7 @@ h2{font-size:20px;margin:4px 0 10px}
 .ligne button{padding:10px 0;min-width:44px;font-size:15px}.ligne .b0{color:var(--d0)}.ligne .b1{color:var(--d1)}
 .ligne .ens{min-width:auto;padding:10px 12px;background:linear-gradient(90deg,#14806b,#2f7bff);border-color:transparent;color:#fff}
 .coeur{color:#ff6f9f;margin-right:4px}
+.tel-suiv{width:100%;margin-top:10px;font-size:18px;padding:14px;background:linear-gradient(90deg,#14806b,#2f7bff);border-color:transparent;color:#fff}
 .duo .t div span{color:#ff6f9f}
 .vide{color:var(--mu);text-align:center;padding:24px 8px}
 #toast{position:fixed;left:14px;right:14px;bottom:calc(16px + env(safe-area-inset-bottom));background:#1d1450f2;border:1px solid var(--bord);border-radius:16px;padding:14px;text-align:center;font-weight:600;opacity:0;transform:translateY(20px);transition:.25s;pointer-events:none;z-index:9}
@@ -53,6 +54,7 @@ h2{font-size:20px;margin:4px 0 10px}
     <div class="deck" id="dk0" style="--c:var(--d0)"><b>DECK 1</b><div class="nm">—</div><div class="inf"></div><button data-lec="0">▶</button></div>
     <div class="deck" id="dk1" style="--c:var(--d1)"><b>DECK 2</b><div class="nm">—</div><div class="inf"></div><button data-lec="1">▶</button></div>
   </div>
+  <button id="suiv" class="tel-suiv">⏭ Passer au suivant maintenant</button>
   <div class="tabs"><button data-o="sons" class="on">🎵 Sons</button><button data-o="duos">♥ Duos</button></div>
   <input id="q" class="inp" placeholder="Rechercher une musique…">
   <div id="liste"></div>
@@ -60,5 +62,5 @@ h2{font-size:20px;margin:4px 0 10px}
 </section>
 <div id="toast"></div>
 <script src="peerjs.min.js"></script>
-<script src="bd-tel.js?v=6.6.0"></script>
+<script src="bd-tel.js?v=6.9.0"></script>
 </body></html>
