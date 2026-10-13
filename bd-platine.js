@@ -33,7 +33,7 @@ function onMidi(e){
     ev={t:m.press?'press':'release'};
     if(shiftMat&&!SHIFT.on&&m.press){SHIFT.tenus.add('_midi');SHIFT.on=true;commande(id,ev);SHIFT.tenus.delete('_midi');SHIFT.on=SHIFT.tenus.size>0;eclat(id);return}
     if(m.press)eclat(id);
-  }else if(kd=='pot'||kd=='fader'){let v=m.typ=='p'?m.v/16383:m.v/127;if(inv)v=1-v;ev={t:'value',v};VAL[id]=v;dessiner(id)}
+  }else if(kd=='pot'||kd=='fader'){let v=m.typ=='p'?m.v/16383:m.v/127;if(inv)v=1-v;ev={t:'value',v}}
   else{const mp=MIDI.map.phys[id]||{},enc=mp.enc||'A',v=m.typ=='p'?m.v/128:m.v,pv=MIDI.der[m.k];let dl;
     if(enc=='C'||m.typ=='p'){dl=pv==null?0:v-pv;if(Math.abs(dl)>64)dl=0}else if(enc=='B')dl=m.v-64;else dl=m.v<64?m.v:m.v-128;
     MIDI.der[m.k]=v;if(!dl)return;if(inv)dl=-dl;ev={t:'delta',v:dl};if(kd=='enc'){VAL[id]+=Math.sign(dl);dessiner(id)}}

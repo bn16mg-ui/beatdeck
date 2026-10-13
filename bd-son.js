@@ -204,11 +204,23 @@ function keyOf(x,sr){
   all.sort((a,b)=>b.r-a.r);const best=all[0],sec=all.find(x=>x.n!=best.n);
   return{n:best.n,b:best.b,c:+clamp(((best.r-(sec?sec.r:0))-.02)/.12).toFixed(2)};
 }
-/* analyse complète d'un morceau pour la bibliothèque */
+/* structure : énergie générale (E) et énergie des graves (L) mesure par mesure, de 0 à 1 */
+function structureOf(buf,bpm,off){
+  if(!bpm)return null;
+  const x=buf.getChannelData(0),sr=buf.sampleRate,bar=4*60/bpm,nb=Math.floor((buf.duration-off)/bar);if(nb<8)return null;
+  const pas=4,a=Math.exp(-2*Math.PI*150/(sr/pas));let lp=0;const E=[],L=[];
+  for(let k=0;k<nb;k++){const s0=Math.floor((off+k*bar)*sr),s1=Math.min(x.length,Math.floor((off+(k+1)*bar)*sr));let se=0,sl=0,n=0;
+    for(let i=s0;i<s1;i+=pas){const v=x[i];lp=a*lp+(1-a)*v;se+=v*v;sl+=lp*lp;n++}E.push(Math.sqrt(se/(n||1)));L.push(Math.sqrt(sl/(n||1)))}
+  const norm=A=>{const t=[...A].sort((p,q)=>p-q),m=t[Math.floor(t.length*.95)]||1;return A.map(v=>+Math.min(1,v/m).toFixed(2))};
+  return{bar:+bar.toFixed(4),E:norm(E),L:norm(L)};
+}
+/* analyse complète d'un morceau pour la bibliothèque (v2 : avec la structure) */
+const META_V=2;
 function analyseSon(buf){
   const t=analyseTempo(buf),x=buf.getChannelData(0);let sq=0,n=0;for(let i=0;i<x.length;i+=97){sq+=x[i]*x[i];n++}
   let key=null;try{key=keyOf(x,buf.sampleRate)}catch(e){}
-  return{v:1,bpm:t.bpm,off:t.off,norm:t.norm,key,dur:buf.duration,en:+Math.sqrt(sq/(n||1)).toFixed(4)};
+  let st=null;try{st=structureOf(buf,t.bpm,t.off)}catch(e){}
+  return{v:META_V,bpm:t.bpm,off:t.off,norm:t.norm,key,dur:buf.duration,en:+Math.sqrt(sq/(n||1)).toFixed(4),st};
 }
 
 /* --- chargement d'un fichier dans un deck --- */

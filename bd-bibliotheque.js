@@ -49,7 +49,7 @@ async function supprimerSon(id){
 let ANA={en:false,fait:0,total:0};
 async function analyserTout(){
   if(ANA.en)return;ANA.en=true;
-  const a=SONS.filter(s=>!s.meta);ANA.fait=0;ANA.total=a.length;
+  const a=SONS.filter(s=>!s.meta||(!s.meta.erreur&&(s.meta.v||1)<META_V));ANA.fait=0;ANA.total=a.length;
   for(const s of a){
     etatBib();
     try{const buf=await AC.decodeAudioData(await s.blob.arrayBuffer());s.meta=analyseSon(buf)}catch(e){console.error(e);s.meta={v:1,erreur:true}}
@@ -134,7 +134,8 @@ function rendreDuos(){
     return`<div class="duo" data-du="${d.id}"><div class="dt"><span class="d0">${esc(a.nom)}</span><i>→</i><span class="d1">${esc(b.nom)}</span></div>
       <div class="dm"><small>${esc(infoSon(a))}</small><small>${esc(infoSon(b))}</small></div>
       ${av?`<ul>${av.av.map(x=>'<li>'+esc(x)+'</li>').join('')}</ul><p class="cons">Transition conseillée : <b>${esc(av.conseil)}</b> <span class="mu">(estimation d'après l'analyse)</span></p>`:'<p class="mu">Analyse en cours…</p>'}
-      <div class="row"><button data-act="charge" class="fort">Charger : 1er sur le deck 1, 2e sur le deck 2</button><button data-act="inv">⇄ Inverser l'ordre</button><button data-act="sup">✕ Supprimer</button></div></div>`}).join('')
+      ${d.trans?`<p class="valide">✓ Transition validée : <b>${esc(NOMT[d.trans.tech])}</b> · sortie à ${fmt(d.trans.exit)} · entrée à ${fmt(d.trans.entry)}</p>`:'<p class="mu">Pas encore de transition validée.</p>'}
+      <div class="row"><button data-act="prep" class="fort">🎚 Préparer la transition</button><button data-act="charge">Charger : 1er sur le deck 1, 2e sur le deck 2</button><button data-act="inv">⇄ Inverser l'ordre</button><button data-act="sup">✕ Supprimer</button></div></div>`}).join('')
     ||'<p class="vide">Aucun duo pour l\'instant. Touche « ＋ Créer un duo », puis choisis le 1er morceau et celui qui vient après. Quand tu chargeras le 1er sur un deck, le 2e se chargera tout seul sur l\'autre.</p>';
 }
 
@@ -176,10 +177,11 @@ async function initBib(){
       BIB.creation=null;rendreDuos();rendreSons();return}
     const b=e.target.closest('[data-act]'),c=e.target.closest('[data-du]');if(!b||!c)return;const d=DUOS.find(x=>x.id==c.dataset.du);if(!d)return;
     if(b.dataset.act=='sup'){if(confirm('Supprimer ce duo ?')){DUOS=DUOS.filter(x=>x!==d);sauverDuos();rendreDuos();rendreSons()}}
-    else if(b.dataset.act=='inv'){if(DUOS.some(x=>x!==d&&x.a==d.b)){toast('« '+sonDe(d.b).nom+' » a déjà son propre duo');return}[d.a,d.b]=[d.b,d.a];sauverDuos();rendreDuos()}
+    else if(b.dataset.act=='prep'){ouvrirPrep(d.id)}
+    else if(b.dataset.act=='inv'){if(DUOS.some(x=>x!==d&&x.a==d.b)){toast('« '+sonDe(d.b).nom+' » a déjà son propre duo');return}[d.a,d.b]=[d.b,d.a];delete d.trans;sauverDuos();rendreDuos()}
     else if(b.dataset.act=='charge'){if(D.some(x=>!x.a.paused)){toast('Mets les deux decks en pause d\'abord');return}
       chargerSon(0,d.a).then(()=>chargerSon(1,d.b)).then(()=>{toast('Duo chargé');fermerBib()})}
   };
   try{SONS=await BASE.tous()||[]}catch(e){console.error(e);SONS=[]}
-  rendreSons();rendreDuos();etatBib();if(SONS.some(s=>!s.meta))analyserTout();
+  rendreSons();rendreDuos();etatBib();if(SONS.some(s=>!s.meta||(!s.meta.erreur&&(s.meta.v||1)<META_V)))analyserTout();
 }

@@ -152,7 +152,8 @@ body.edition #sx1 .ctl.edsel{outline:4px solid var(--or);box-shadow:0 0 30px #ff
 /* ---- bibliothèque ---- */
 .hb.bibb{background:linear-gradient(90deg,#2f7bff,#7b3cff);color:#fff;border-color:transparent;margin-left:14px;box-shadow:0 0 18px #6b5cff66}
 .card.big{width:min(980px,97vw);height:92vh;display:flex;flex-direction:column}
-.card.big>div:not(.ch2){display:flex;flex-direction:column;min-height:0;flex:1}
+#bib .card.big>div:not(.ch2){display:flex;flex-direction:column;min-height:0;flex:1}
+#prV{flex:none}#prL{flex:1;min-height:0;overflow:auto}
 #bib .ch2{gap:10px}#bib .tabs{flex:1;margin:0}
 .nb{font-size:13px;opacity:.75;margin-left:4px}
 .inp{width:100%;padding:11px 12px;border-radius:12px;background:#0a0628;color:var(--tx);border:1px solid var(--bord);font:inherit;font-size:16px;margin:6px 0}
@@ -175,3 +176,34 @@ body.edition #sx1 .ctl.edsel{outline:4px solid var(--or);box-shadow:0 0 30px #ff
 .duo .dm{display:flex;gap:20px;color:var(--mu)}
 .duo ul{margin:8px 0;padding-left:20px;color:#cfc8ff}.duo li{margin:3px 0}
 .duo .cons{margin:6px 0}
+
+/* ---- mode DJ automatique : logo discret ---- */
+#logo{cursor:default;user-select:none}
+#logo.auto{animation:lueur 3s ease-in-out infinite}
+@keyframes lueur{50%{filter:drop-shadow(0 0 22px #9b7bffcc) brightness(1.25)}}
+/* ---- guide « faire semblant » ---- */
+#guide{position:fixed;left:50%;bottom:10px;transform:translateX(-50%);z-index:30;display:flex;align-items:center;gap:14px;max-width:94vw;
+  background:linear-gradient(90deg,#0f3b47f2,#24145af2);border:1px solid #5ef0d2aa;border-radius:16px;padding:10px 18px;box-shadow:0 0 30px #5ef0d244;pointer-events:none}
+#gC{font-weight:700;color:#5ef0d2;white-space:nowrap;font-size:17px}#gT{font-size:18px;font-weight:600}
+#guide.maint{background:linear-gradient(90deg,#5ef0d2,#7b3cff);border-color:#fff}#guide.maint #gC,#guide.maint #gT{color:#05031a}
+.ctl.guide{outline:5px solid #5ef0d2!important;outline-offset:7px;border-radius:14px;animation:gpulse .6s infinite alternate}
+.knob.guide,.round.guide,.jog.guide{border-radius:50%}
+@keyframes gpulse{to{outline-color:#5ef0d244;box-shadow:0 0 30px #5ef0d2}}
+/* ---- préparer la transition ---- */
+#prT{font-size:20px}#prT i{font-style:normal;color:#ff6f9f}#prT .d0{color:var(--d0)}#prT .d1{color:var(--d1)}
+#prL{flex:1;overflow:auto}
+.valide{background:#0f3b47aa;border:1px solid #5ef0d288;border-radius:12px;padding:8px 12px;color:#bff7ea;margin:6px 0}
+.valide button{margin-left:10px;padding:5px 10px}
+.prop{background:#120c34cc;border:1px solid var(--bord);border-radius:16px;padding:12px 14px;margin:8px 0}
+.prop.ok{border-color:#5ef0d2;box-shadow:0 0 18px #5ef0d233}
+.prop .ph{display:flex;align-items:center;gap:10px;font-size:18px}.prop .et{color:var(--or);letter-spacing:2px}
+.tag{font-size:12px;border:1px solid var(--bord);border-radius:10px;padding:2px 8px;color:var(--mu)}.tag.v{color:#5ef0d2;border-color:#5ef0d288}
+.prop ul{margin:6px 0;padding-left:20px;color:#cfc8ff}.prop li{margin:2px 0}
+.fr small{display:block;color:var(--mu);margin-top:6px}
+.frise{position:relative;height:30px;background:#0a0628;border-radius:6px;overflow:hidden;margin-top:2px}
+.frise i{position:absolute;bottom:0;border-right:1px solid #0a0628}
+.frise i.fort{background:#7b3cffcc}.frise i.moyen{background:#2f7bff99}.frise i.calme{background:#38c8ff44}
+.frise b{position:absolute;top:0;bottom:0;width:3px;margin-left:-1px;box-shadow:0 0 8px currentColor}
+.prop button.stop{background:#5a1430;border-color:#ff6f9f}
+.modif{border-top:1px solid var(--bord);margin-top:8px;padding-top:6px}.modif .row span{min-width:220px;color:#cfc8ff}
+.modif button.on{background:linear-gradient(90deg,#2f7bff,#7b3cff);color:#fff}

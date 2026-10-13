@@ -48,13 +48,14 @@ function commande(id,ev){
   AC.resume();
   if(typeof REAPP!='undefined'&&REAPP.attente){if(ev.t!='release')reapprendreChoisi(id);return}
   if(typeof EDITION!='undefined'&&EDITION.on){if(ev.t=='press'||ev.t=='value'||ev.t=='delta')editerCommande(id);return}
+  if(typeof autoBloque=='function'&&autoBloque(id,ev))return;
   const F=FN[id];if(!F)return;
   // au relâchement, on prévient la fonction qui a reçu l'appui (même si SHIFT a été lâché entre-temps)
   if(ev.t=='release'){const f=F._appui||F.base;F._appui=null;if(f&&f.release)f.release();return}
   const f=fonctionDe(id);if(!f)return;
   try{
     if(ev.t=='press'){F._appui=f;if(f.press)f.press()}
-    else if(ev.t=='value'){if(f.val){f.val(ev.v);VAL[id]=ev.v}}
+    else if(ev.t=='value'){if(f.val){f.val(ev.v);VAL[id]=ev.v;dessiner(id)}}
     else if(ev.t=='delta'){if(f.delta)f.delta(ev.v)}
   }catch(e){console.error(e);toast('Action impossible : '+f.nom)}
 }

@@ -5,7 +5,7 @@
 <title>BeatDeck</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="bd-style.css?v=6.3.0">
+<link rel="stylesheet" href="bd-style.css?v=6.4.0">
 </head><body>
 <canvas id="ciel"></canvas>
 <div id="vp"><div id="stage">
@@ -38,6 +38,17 @@
   </div>
 </div></div>
 
+<!-- Préparer la transition d'un duo -->
+<div class="pan" id="prep" hidden><div class="card big">
+  <div class="ch2"><h2 id="prT"></h2><span class="sp"></span><button id="prX">Fermer</button></div>
+  <div id="prV"></div>
+  <p class="mu petit">Les propositions viennent de l'analyse des deux morceaux (estimation) : écoute-les, modifie-les si besoin, puis valide celle que tu préfères. « Écouter » joue les 12 secondes avant la transition puis la transition, avec le guide en bas de l'écran.</p>
+  <div id="prL"></div>
+</div></div>
+
+<!-- Guide « faire semblant » -->
+<div id="guide" hidden><span id="gC"></span><span id="gT"></span></div>
+
 <!-- Ta platine -->
 <div class="pan" id="platp" hidden><div class="card">
   <div class="ch2"><h2>Ta platine</h2><span class="sp"></span><button class="x">Fermer</button></div>
@@ -64,11 +75,12 @@
   <div class="row"><button id="capB">Revenir</button><button id="capS">Passer (cette commande n'envoie rien)</button><span class="sp"></span><button id="capX">Arrêter</button></div>
 </div></div>
 
-<script src="bd-interface.js?v=6.3.0"></script>
-<script src="bd-son.js?v=6.3.0"></script>
-<script src="bd-commandes.js?v=6.3.0"></script>
-<script src="bd-raccourcis.js?v=6.3.0"></script>
-<script src="bd-bibliotheque.js?v=6.3.0"></script>
-<script src="bd-platine.js?v=6.3.0"></script>
+<script src="bd-interface.js?v=6.4.0"></script>
+<script src="bd-son.js?v=6.4.0"></script>
+<script src="bd-commandes.js?v=6.4.0"></script>
+<script src="bd-raccourcis.js?v=6.4.0"></script>
+<script src="bd-bibliotheque.js?v=6.4.0"></script>
+<script src="bd-auto.js?v=6.4.0"></script>
+<script src="bd-platine.js?v=6.4.0"></script>
 <script>demarrer()</script>
 </body></html>

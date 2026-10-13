@@ -55,76 +55,93 @@ function transition(cle,d,f){
   f(r.X,r.O);
 }
 
-/* — transitions — */
+/* — transitions —
+   TECH[cle](X, O, w, o) : X sort, O entre ; la technique démarre dans w secondes.
+   o.entry = endroit du morceau O où il démarre (préparé dans le duo) ; o.silence = pas de message. */
+const TECH={};
+const entree=(O,X,o)=>{if(o.entry!=null&&O.a.src&&O.a.paused){killLoop(O);O.a.currentTime=Math.max(0,o.entry)}return preparerEntree(O,X)};
+TECH.echo_out=(X,O,w,o={})=>{
+  const j=new Job('echo_out:'+X.i,[X.i,O.i]),b=wallBeat(X),entre=!!O.a.src,proche=entree(O,X,o);
+  j.onStop(()=>{echoSet(X,false);agReset(X)});
+  j.later(()=>echoSet(X,true),w*1000);
+  j.later(()=>{agVers(X,0,0,.03);echoSet(X,false);if(entre){G.xf=cote(O);VAL.xf=G.xf;mix();dessiner('xf')}},(w+2*b)*1000);
+  if(entre)lancerA(O,j,w+2*b,proche);
+  j.later(()=>{sortir(X);j.end()},(w+2*b+4)*1000);
+  if(!o.silence)toast('Écho Out au prochain temps'+(entre?' → le deck '+(O.i+1)+' entre':''));
+  return j;
+};
+const blendTech=(cle,N)=>(X,O,w,o={})=>{
+  if(!O.a.src){if(!o.silence)toast('Charge un morceau sur l\'autre deck d\'abord');return null}
+  if(!O.a.paused){if(!o.silence)toast('Les deux decks jouent déjà : mets celui qui doit entrer en pause, à l\'endroit où il doit démarrer');return null}
+  if(!tempoProche(X,O)){if(!o.silence)toast('Tempos trop différents pour mélanger longtemps : utilise ÉCHO OUT ou COUPURE NETTE');return null}
+  const j=new Job(cle+':'+X.i,[X.i,O.i]),b=wallBeat(X),proche=entree(O,X,o);
+  O.ov.low=0;applyDeck(O);
+  j.onStop(()=>{delete O.ov.low;applyDeck(O);delete X.ov.low;applyDeck(X)});
+  lancerA(O,j,w,proche);
+  j.later(()=>xfVers(.5,N/2*b,j),w*1000);                                        // 1re moitié : le nouveau monte, sans ses graves
+  j.later(()=>{ovVers(X,'low',X.k.low,0,b,j);ovVers(O,'low',0,O.k.low,b,j)},(w+N/2*b-b/2)*1000);  // milieu : on échange les graves
+  j.later(()=>{delete O.ov.low;applyDeck(O);xfVers(cote(O),N/2*b,j)},(w+N/2*b+b)*1000);       // 2e moitié : l'ancien s'efface
+  j.later(()=>{sortir(X);j.end()},(w+N*b+b*1.5)*1000);
+  if(!o.silence)toast(CAT[cle].titre+' : départ à la prochaine mesure ('+N+' temps)');
+  return j;
+};
+TECH.eq_swap=blendTech('eq_swap',16);
+TECH.mix_long=blendTech('mix_long',32);
+TECH.filtre_out=(X,O,w,o={})=>{
+  const j=new Job('filtre_out:'+X.i,[X.i,O.i]),b=wallBeat(X),entre=!!O.a.src&&O.a.paused,proche=entre&&entree(O,X,o);
+  j.onStop(()=>{delete X.ov.flt;applyDeck(X);delete O.ov.flt;applyDeck(O)});
+  j.later(()=>{ovVers(X,'flt',X.k.flt,.06,8*b,j);if(entre){O.ov.flt=.8;applyDeck(O);ovVers(O,'flt',.8,O.k.flt,8*b,j);xfVers(cote(O),8*b,j)}else agVers(X,0,0,8*b)},w*1000);
+  if(entre)lancerA(O,j,w,proche);
+  j.later(()=>{delete O.ov.flt;applyDeck(O);sortir(X);j.end()},(w+8*b+.1)*1000);
+  if(!o.silence)toast('Filtre de sortie à la prochaine mesure'+(entre?' → le deck '+(O.i+1)+' entre':''));
+  return j;
+};
+TECH.coupure=(X,O,w,o={})=>{
+  if(!O.a.src){if(!o.silence)toast('Charge un morceau sur l\'autre deck d\'abord');return null}
+  const j=new Job('coupure:'+X.i,[X.i,O.i]),proche=O.a.paused&&entree(O,X,o);
+  if(o.riser)j.later(()=>{const s=riser(8*wallBeat(X));j.onStop(()=>{try{s.stop()}catch(e){}})},Math.max(0,(w-8*wallBeat(X))*1000));
+  lancerA(O,j,w,proche);
+  j.later(()=>{G.xf=cote(O);VAL.xf=G.xf;mix();dessiner('xf');sortir(X);j.end()},w*1000);
+  if(!o.silence)toast('Coupure nette à la prochaine mesure');
+  return j;
+};
+TECH.boucle_out=(X,O,w,o={})=>{
+  if(!X.grid){if(!o.silence)toast('Tempo non détecté : boucle impossible');return null}
+  const j=new Job('boucle_out:'+X.i,[X.i,O.i]),b=wallBeat(X),B=beatLen(X),entre=!!O.a.src&&O.a.paused,proche=entre&&entree(O,X,o);
+  const s=posOf(X)+w*rateOf(X);let t=w;
+  j.onStop(()=>{if(X.lp)loopOff(X)});
+  [4,2,1,.5,.5].forEach(n=>{j.later(()=>loopOn(X,n*B,{start:s}),t*1000);t+=n*b});
+  if(o.riser)j.later(()=>{const r=riser(8*b);j.onStop(()=>{try{r.stop()}catch(e){}})},w*1000);
+  if(entre){lancerA(O,j,t,proche);j.later(()=>{G.xf=cote(O);VAL.xf=G.xf;mix();dessiner('xf');sortir(X);j.end()},t*1000)}
+  else j.later(()=>{loopOff(X);j.end()},t*1000);
+  if(!o.silence)toast('Boucle Out'+(entre?' → le deck '+(O.i+1)+' entre à la fin':''));
+  return j;
+};
+TECH.frein=(X,O,w,o={})=>{
+  const j=new Job('frein:'+X.i,[X.i,O.i]),dur=Math.max(.5,wallBeat(X)*2),entre=!!O.a.src&&O.a.paused,proche=entre&&entree(O,X,o);
+  const fin=()=>{X.nudge=1;X.a.preservesPitch=true;applyRate(X)};j.onStop(fin);
+  j.later(()=>{X.a.preservesPitch=false;const t0=performance.now(),id=j.every(()=>{const k=clamp((performance.now()-t0)/(dur*1000));X.nudge=Math.max(.06,1-k);applyRate(X);if(k>=1)clearInterval(id)},25)},w*1000);
+  if(entre){lancerA(O,j,w+dur,proche);j.later(()=>{G.xf=cote(O);VAL.xf=G.xf;mix();dessiner('xf')},(w+dur)*1000)}
+  j.later(()=>{sortir(X);fin();j.end()},(w+dur)*1000);
+  return j;
+};
+// quand tu appuies sur un raccourci de transition : départ au prochain temps ou à la prochaine mesure
+const QUAND={echo_out:attTemps,boucle_out:attTemps,frein:attTemps,eq_swap:attMesure,mix_long:attMesure,filtre_out:attMesure,coupure:attMesure};
+const runTrans=cle=>({run(d){transition(cle,d,(X,O)=>TECH[cle](X,O,QUAND[cle](X)))},on:()=>[...JOBS].some(j=>j.cle.startsWith(cle+':'))});
 rc('echo_out','Transitions','ÉCHO OUT','Écho Out',
-  'Au prochain temps, écho sur le morceau qui joue pendant 2 temps, puis il s\'arrête et laisse traîner l\'écho. Le morceau de l\'autre deck entre pile à ce moment-là (s\'il est chargé). Marche même si les tempos sont très différents.',
-  {run(d){transition('echo_out',d,(X,O)=>{
-    const j=new Job('echo_out:'+X.i,[X.i,O.i]),w=attTemps(X),b=wallBeat(X),proche=preparerEntree(O,X),entre=!!O.a.src;
-    j.onStop(()=>{echoSet(X,false);agReset(X)});
-    j.later(()=>echoSet(X,true),w*1000);
-    j.later(()=>{agVers(X,0,0,.03);echoSet(X,false);if(entre){G.xf=cote(O);VAL.xf=G.xf;mix();dessiner('xf')}},(w+2*b)*1000);
-    if(entre)lancerA(O,j,w+2*b,proche);
-    j.later(()=>{sortir(X);j.end()},(w+2*b+4)*1000);
-    toast('Écho Out au prochain temps'+(entre?' → le deck '+(O.i+1)+' entre':''));
-  })},on:d=>[...JOBS].some(j=>j.cle.startsWith('echo_out:'))});
-const blend=(cle,N)=>({run(d){transition(cle,d,(X,O)=>{
-    if(!O.a.src){toast('Charge un morceau sur l\'autre deck d\'abord');return}
-    if(!O.a.paused){toast('Les deux decks jouent déjà : mets celui qui doit entrer en pause, à l\'endroit où il doit démarrer');return}
-    if(!tempoProche(X,O)){toast('Tempos trop différents pour mélanger longtemps : utilise ÉCHO OUT ou COUPURE NETTE');return}
-    const j=new Job(cle+':'+X.i,[X.i,O.i]),w=attMesure(X),b=wallBeat(X),proche=preparerEntree(O,X);
-    O.ov.low=0;applyDeck(O);
-    j.onStop(()=>{delete O.ov.low;applyDeck(O);delete X.ov.low;applyDeck(X)});
-    lancerA(O,j,w,proche);
-    j.later(()=>xfVers(.5,N/2*b,j),w*1000);                                        // 1re moitié : le nouveau monte, sans ses graves
-    j.later(()=>{ovVers(X,'low',X.k.low,0,b,j);ovVers(O,'low',0,O.k.low,b,j)},(w+N/2*b-b/2)*1000);  // milieu : on échange les graves
-    j.later(()=>{delete O.ov.low;applyDeck(O);xfVers(cote(O),N/2*b,j)},(w+N/2*b+b)*1000);       // 2e moitié : l'ancien s'efface
-    j.later(()=>{sortir(X);j.end()},(w+N*b+b*1.5)*1000);
-    toast(CAT[cle].titre+' : départ à la prochaine mesure ('+N+' temps)');
-  })},on:d=>[...JOBS].some(j=>j.cle.startsWith(cle+':'))});
+  'Au prochain temps, écho sur le morceau qui joue pendant 2 temps, puis il s\'arrête et laisse traîner l\'écho. Le morceau de l\'autre deck entre pile à ce moment-là (s\'il est chargé). Marche même si les tempos sont très différents.',runTrans('echo_out'));
 rc('eq_swap','Transitions','ÉCH. BASSES','Échange des basses (EQ Swap) · 16 temps',
-  'Le morceau de l\'autre deck entre calé sur le tempo, sans ses graves. Au milieu, les graves s\'échangent d\'un coup sur le temps, puis l\'ancien morceau s\'efface. Idéal en house, afro, dance quand les tempos sont proches.',blend('eq_swap',16));
+  'Le morceau de l\'autre deck entre calé sur le tempo, sans ses graves. Au milieu, les graves s\'échangent d\'un coup sur le temps, puis l\'ancien morceau s\'efface. Idéal en house, afro, dance quand les tempos sont proches.',runTrans('eq_swap'));
 rc('mix_long','Transitions','MIX LONG','Mix long (Beatmix) · 32 temps',
-  'Même principe que l\'échange des basses mais sur 32 temps : les deux morceaux restent superposés plus longtemps. Pour un passage très fluide entre deux morceaux qui vont bien ensemble.',blend('mix_long',32));
+  'Même principe que l\'échange des basses mais sur 32 temps : les deux morceaux restent superposés plus longtemps. Pour un passage très fluide entre deux morceaux qui vont bien ensemble.',runTrans('mix_long'));
 rc('filtre_out','Transitions','FILTRE OUT','Filtre de sortie · 8 temps',
-  'Le morceau qui joue s\'étouffe petit à petit (filtre) pendant 8 temps pendant que l\'autre entre avec un son fin qui s\'ouvre. Utile pour changer d\'ambiance en douceur.',
-  {run(d){transition('filtre_out',d,(X,O)=>{
-    const j=new Job('filtre_out:'+X.i,[X.i,O.i]),w=attMesure(X),b=wallBeat(X),entre=!!O.a.src&&O.a.paused,proche=entre&&preparerEntree(O,X);
-    j.onStop(()=>{delete X.ov.flt;applyDeck(X);delete O.ov.flt;applyDeck(O)});
-    j.later(()=>{ovVers(X,'flt',X.k.flt,.06,8*b,j);if(entre){O.ov.flt=.8;applyDeck(O);ovVers(O,'flt',.8,O.k.flt,8*b,j);xfVers(cote(O),8*b,j)}else agVers(X,0,0,8*b)},w*1000);
-    if(entre)lancerA(O,j,w,proche);
-    j.later(()=>{delete O.ov.flt;applyDeck(O);sortir(X);j.end()},(w+8*b+.1)*1000);
-    toast('Filtre de sortie à la prochaine mesure'+(entre?' → le deck '+(O.i+1)+' entre':''));
-  })},on:()=>[...JOBS].some(j=>j.cle.startsWith('filtre_out:'))});
+  'Le morceau qui joue s\'étouffe petit à petit (filtre) pendant 8 temps pendant que l\'autre entre avec un son fin qui s\'ouvre. Utile pour changer d\'ambiance en douceur.',runTrans('filtre_out'));
 rc('coupure','Transitions','COUPURE','Coupure nette (Hard Cut)',
-  'À la prochaine mesure, on passe d\'un coup sur l\'autre deck : l\'ancien s\'arrête, le nouveau démarre. Efficace en rap, hip-hop et pour lancer un refrain connu.',
-  {run(d){transition('coupure',d,(X,O)=>{
-    if(!O.a.src){toast('Charge un morceau sur l\'autre deck d\'abord');return}
-    const j=new Job('coupure:'+X.i,[X.i,O.i]),w=attMesure(X),proche=O.a.paused&&preparerEntree(O,X);
-    lancerA(O,j,w,proche);
-    j.later(()=>{G.xf=cote(O);VAL.xf=G.xf;mix();dessiner('xf');sortir(X);j.end()},w*1000);
-    toast('Coupure nette à la prochaine mesure');
-  })}});
+  'À la prochaine mesure, on passe d\'un coup sur l\'autre deck : l\'ancien s\'arrête, le nouveau démarre. Efficace en rap, hip-hop et pour lancer un refrain connu.',runTrans('coupure'));
 rc('boucle_out','Transitions','BOUCLE OUT','Boucle Out · 8 temps',
-  'Le morceau qui joue répète une boucle qui raccourcit (4, 2, 1, ½ temps) pour créer l\'attente, puis le morceau de l\'autre deck explose sur le temps.',
-  {run(d){transition('boucle_out',d,(X,O)=>{
-    if(!X.grid){toast('Tempo non détecté : boucle impossible');return}
-    const j=new Job('boucle_out:'+X.i,[X.i,O.i]),w=attTemps(X),b=wallBeat(X),B=beatLen(X),entre=!!O.a.src&&O.a.paused,proche=entre&&preparerEntree(O,X);
-    const s=nextBeat(X,posOf(X));let t=w;
-    j.onStop(()=>{if(X.lp)loopOff(X)});
-    [4,2,1,.5,.5].forEach(n=>{j.later(()=>loopOn(X,n*B,{start:s}),t*1000);t+=n*b});
-    if(entre){lancerA(O,j,t,proche);j.later(()=>{G.xf=cote(O);VAL.xf=G.xf;mix();dessiner('xf');sortir(X);j.end()},t*1000)}
-    else j.later(()=>{loopOff(X);j.end()},t*1000);
-    toast('Boucle Out'+(entre?' → le deck '+(O.i+1)+' entre à la fin':''));
-  })},on:()=>[...JOBS].some(j=>j.cle.startsWith('boucle_out:'))});
+  'Le morceau qui joue répète une boucle qui raccourcit (4, 2, 1, ½ temps) pour créer l\'attente, puis le morceau de l\'autre deck explose sur le temps.',runTrans('boucle_out'));
 rc('frein','Transitions','FREIN','Frein vinyle',
-  'Le morceau qui joue ralentit jusqu\'à l\'arrêt comme un vinyle qu\'on freine, puis le morceau de l\'autre deck démarre (s\'il est chargé).',
-  {run(d){transition('frein',d,(X,O)=>{
-    const j=new Job('frein:'+X.i,[X.i,O.i]),w=attTemps(X),dur=Math.max(.5,wallBeat(X)*2),entre=!!O.a.src&&O.a.paused,proche=entre&&preparerEntree(O,X);
-    const fin=()=>{X.nudge=1;X.a.preservesPitch=true;applyRate(X)};j.onStop(fin);
-    j.later(()=>{X.a.preservesPitch=false;const t0=performance.now(),id=j.every(()=>{const k=clamp((performance.now()-t0)/(dur*1000));X.nudge=Math.max(.06,1-k);applyRate(X);if(k>=1)clearInterval(id)},25)},w*1000);
-    if(entre){lancerA(O,j,w+dur,proche);j.later(()=>{G.xf=cote(O);VAL.xf=G.xf;mix();dessiner('xf')},(w+dur)*1000)}
-    j.later(()=>{sortir(X);fin();j.end()},(w+dur)*1000);
-  })}});
+  'Le morceau qui joue ralentit jusqu\'à l\'arrêt comme un vinyle qu\'on freine, puis le morceau de l\'autre deck démarre (s\'il est chargé).',runTrans('frein'));
 
 /* — effets sur le deck du bouton — */
 const surCeDeck=(d,f)=>{if(!pret(d))return;f()};
