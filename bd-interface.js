@@ -2,7 +2,7 @@
 /* ===== BeatDeck 6 · l'interface =====
    La platine The Next Beat by Tiësto SX1 dessinée à l'écran, commandes aux mêmes emplacements que la vraie.
    Chaque commande (à l'écran ou sur la platine) appelle commande(id, geste) dans bd-commandes.js. */
-const VERSION='6.2.0';
+const VERSION='6.3.0';
 const $=id=>document.getElementById(id),Q=(s,r=document)=>r.querySelector(s),QA=(s,r=document)=>[...r.querySelectorAll(s)];
 const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
 const esc=t=>String(t??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -73,7 +73,7 @@ function galaxie(col){
 
 /* ---------- construction de l'écran ---------- */
 function construire(){
-  $('waves').innerHTML=[0,1].map(i=>`<div class="wr" style="--c:${COL[i]}"><div class="wi"><div class="t1"><b>DECK ${i+1}</b><span class="nm" id="wn${i}">Aucun morceau</span></div><div class="t2" id="wt${i}">Touche CHARGER ${i+1} pour choisir une musique</div></div><div class="wc"><canvas id="w${i}"></canvas></div></div>`).join('');
+  $('waves').innerHTML=[0,1].map(i=>`<div class="wr" style="--c:${COL[i]}"><div class="wi"><div class="t1"><b>DECK ${i+1}</b><span class="nm" id="wn${i}">Aucun morceau</span></div><div class="t2" id="wt${i}">Choisis une musique dans 🎵 Bibliothèque</div></div><div class="wc"><canvas id="w${i}"></canvas></div></div>`).join('');
   let h=`<div class="plate" style="left:40px;top:330px;width:850px;height:760px"></div><div class="plate" style="left:1310px;top:330px;width:850px;height:760px"></div><div class="plate mx" style="left:878px;top:338px;width:444px;height:744px"></div>`;
   h+=`<div class="deco brand" style="left:1100px;top:895px;transform:translateX(-50%)">⟆ The Next Beat</div><div class="deco" style="left:330px;top:1050px">+ SEARCH −</div><div class="deco" style="left:1760px;top:1050px">+ SEARCH −</div><div class="deco" style="left:100px;top:360px">MASTER TEMPO</div><div class="deco" style="left:1905px;top:360px">MASTER TEMPO</div>`;
   for(const p of PHYS){
@@ -169,7 +169,7 @@ function voyants(){
     const f=typeof fonctionDe=='function'?fonctionDe(p.id):null;el.classList.toggle('on',!!(f&&f.on&&f.on()))}
   D.forEach((d,i)=>{
     $('wn'+i).textContent=d.nom||'Aucun morceau';
-    if(!d.a.src){$('wt'+i).textContent='Touche CHARGER '+(i+1)+' pour choisir une musique';return}
+    if(!d.a.src){$('wt'+i).textContent='Choisis une musique dans 🎵 Bibliothèque';return}
     const b=[];if(d.chargement)b.push('analyse du tempo…');else if(d.bpm)b.push(nf(d.bpm*rateOf(d),1)+' BPM');else b.push('tempo non détecté');
     const pc=(d.rate-1)*100;b.push((pc>=0?'+':'')+nf(pc,1)+' %');if(d.syncLock)b.push('SYNC');if(d.lp)b.push(d.lp.slip?'ROULEMENT':'BOUCLE');if(d.echoOn)b.push('ÉCHO');if(d.revOn)b.push('RÉVERB');if(d.flangerOn)b.push('FLANGER');
     const en=typeof JOBS!='undefined'?[...JOBS].filter(j=>j.decks[0]==i&&CAT[j.cle.split(':')[0]]).map(j=>CAT[j.cle.split(':')[0]].nom):[];if(en.length)b.push('▶ '+en.join(', '));
@@ -194,7 +194,7 @@ function ciel(){
 
 /* ---------- démarrage ---------- */
 function demarrer(){
-  ciel();construire();ajuster();mix();initPlatine();initRaccourcis();requestAnimationFrame(image);
+  ciel();construire();ajuster();mix();initPlatine();initRaccourcis();initBib();requestAnimationFrame(image);
   QA('.pan').forEach(p=>{p.addEventListener('pointerdown',e=>{if(e.target===p)p.hidden=true});QA('.x',p).forEach(x=>x.onclick=()=>p.hidden=true)});
   addEventListener('resize',ajuster);addEventListener('orientationchange',()=>setTimeout(ajuster,300));document.addEventListener('fullscreenchange',()=>setTimeout(ajuster,300));
   $('fs').onclick=()=>{const e=document.documentElement;document.fullscreenElement?document.exitFullscreen():e.requestFullscreen&&e.requestFullscreen().then(()=>{try{screen.orientation.lock('landscape')}catch(x){}}).catch(()=>{})};

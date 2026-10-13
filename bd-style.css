@@ -148,3 +148,30 @@ body.edition #sx1 .ctl.edsel{outline:4px solid var(--or);box-shadow:0 0 30px #ff
 .rItem{display:block;width:100%;text-align:left;margin:5px 0;padding:10px 12px;background:#140e3a}
 .rItem b{display:block;font-size:15px}.rItem small{display:block;color:var(--mu);font-weight:500;margin-top:3px;line-height:1.35}
 .rItem.sel{border-color:var(--or);background:#2a1f5c;box-shadow:0 0 14px #ffd27a44}
+
+/* ---- bibliothèque ---- */
+.hb.bibb{background:linear-gradient(90deg,#2f7bff,#7b3cff);color:#fff;border-color:transparent;margin-left:14px;box-shadow:0 0 18px #6b5cff66}
+.card.big{width:min(980px,97vw);height:92vh;display:flex;flex-direction:column}
+.card.big>div:not(.ch2){display:flex;flex-direction:column;min-height:0;flex:1}
+#bib .ch2{gap:10px}#bib .tabs{flex:1;margin:0}
+.nb{font-size:13px;opacity:.75;margin-left:4px}
+.inp{width:100%;padding:11px 12px;border-radius:12px;background:#0a0628;color:var(--tx);border:1px solid var(--bord);font:inherit;font-size:16px;margin:6px 0}
+#lSons,#lDuos{flex:1;overflow:auto;margin-top:6px;padding-right:4px}
+.ls{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:12px;border:1px solid transparent;margin:3px 0;background:#120c34aa}
+.ls.sel{border-color:var(--or);background:#2a1f5c;box-shadow:0 0 14px #ffd27a33}
+.ls .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;font-size:16px;cursor:pointer}
+.ls .nm small{display:block;color:var(--mu);font-weight:500;font-size:13px;margin-top:2px}
+.ls button{min-width:46px;padding:9px 0;font-weight:700;font-size:16px}
+.ls .d0{color:var(--d0);border-color:#38c8ff66}.ls .d1{color:var(--d1);border-color:#b46bff66}
+.ls .sup{min-width:38px;color:var(--mu);background:transparent}
+.coeur{font-style:normal;color:#ff6f9f;margin-right:6px}
+.vide{color:var(--mu);text-align:center;padding:30px 10px;line-height:1.5}
+.petit{font-size:13px;margin:8px 0 0}
+.pick{display:block;width:100%;text-align:left;margin:4px 0;padding:10px 12px;background:#140e3a;font-size:16px}
+.pick small{display:block;color:var(--mu);font-weight:500;font-size:13px}
+.duo{background:#120c34cc;border:1px solid var(--bord);border-radius:16px;padding:12px 14px;margin:8px 0}
+.duo .dt{display:flex;align-items:center;gap:10px;font-size:19px;font-weight:700;flex-wrap:wrap}
+.duo .dt i{font-style:normal;color:#ff6f9f}.duo .dt .d0{color:var(--d0)}.duo .dt .d1{color:var(--d1)}
+.duo .dm{display:flex;gap:20px;color:var(--mu)}
+.duo ul{margin:8px 0;padding-left:20px;color:#cfc8ff}.duo li{margin:3px 0}
+.duo .cons{margin:6px 0}

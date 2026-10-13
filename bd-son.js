@@ -42,6 +42,7 @@ function mkDeck(i){
   d.fad.connect(d.rS);d.rS.connect(REV.cv);
   a.addEventListener('pause',()=>{if(d.lp&&!d.lp.slip)killLoop(d)});
   a.addEventListener('ended',()=>{if(d.lp)killLoop(d)});
+  a.addEventListener('play',()=>{d.joue=true});
   return d;
 }
 for(let i=0;i<2;i++)D.push(mkDeck(i));
@@ -187,22 +188,45 @@ function analyseTempo(buf){
   return{bpm:Math.round(b2*100)/100,off:ph/fps,norm:Math.min(2,Math.max(.4,.12/(Math.sqrt(sq/cn)||.1)))};
 }
 
+/* tonalité (notation Camelot : 8A, 8B…), mesurée sur 30 s au milieu du morceau ; c = confiance de 0 à 1 */
+const KP=[[6.35,2.23,3.48,2.33,4.38,4.09,2.52,5.19,2.39,3.66,2.29,2.88],[6.33,2.68,3.52,5.38,2.6,3.53,2.54,4.75,3.98,2.69,3.34,3.17]];
+function keyOf(x,sr){
+  const W=16384,ch=new Float32Array(12),w=new Float32Array(W),st=Math.max(0,Math.floor(x.length/2-sr*15)),en=Math.min(x.length,st+sr*30);
+  for(let j=0;j<W;j++)w[j]=.5-.5*Math.cos(6.2832*j/W);
+  const cs=[];for(let n=0;n<48;n++)cs.push([2*Math.cos(6.2832*130.81*Math.pow(2,n/12)/sr),n%12]);
+  for(let p=st;p+W<en;p+=2*W)for(const[c,pc]of cs){let s1=0,s2=0;for(let j=0;j<W;j++){const s0=w[j]*x[p+j]+c*s1-s2;s2=s1;s1=s0}ch[pc]+=Math.sqrt(Math.max(0,s1*s1+s2*s2-c*s1*s2))}
+  const all=[];
+  for(let m=0;m<2;m++)for(let k=0;k<12;k++){
+    const a=[...Array(12)].map((_,i)=>ch[(k+i)%12]),ma=a.reduce((u,v)=>u+v)/12,mp=KP[m].reduce((u,v)=>u+v)/12;
+    let nu=0,da=0,db=0;for(let i=0;i<12;i++){const u=a[i]-ma,v=KP[m][i]-mp;nu+=u*v;da+=u*u;db+=v*v}
+    all.push({r:nu/Math.sqrt(da*db||1),n:((m?k+3:k)%12*7%12+7)%12+1,b:!m});
+  }
+  all.sort((a,b)=>b.r-a.r);const best=all[0],sec=all.find(x=>x.n!=best.n);
+  return{n:best.n,b:best.b,c:+clamp(((best.r-(sec?sec.r:0))-.02)/.12).toFixed(2)};
+}
+/* analyse complète d'un morceau pour la bibliothèque */
+function analyseSon(buf){
+  const t=analyseTempo(buf),x=buf.getChannelData(0);let sq=0,n=0;for(let i=0;i<x.length;i+=97){sq+=x[i]*x[i];n++}
+  let key=null;try{key=keyOf(x,buf.sampleRate)}catch(e){}
+  return{v:1,bpm:t.bpm,off:t.off,norm:t.norm,key,dur:buf.duration,en:+Math.sqrt(sq/(n||1)).toFixed(4)};
+}
+
 /* --- chargement d'un fichier dans un deck --- */
-async function chargerDeck(i,f){
+async function chargerDeck(i,f,info){
   const d=D[i];if(!f)return false;
   if(!d.a.paused){toast('Le deck '+(i+1)+' joue : mets-le en pause avant de charger un autre morceau');return false}
   killLoop(d);pauseDeck(d);if(d.url)URL.revokeObjectURL(d.url);
   d.url=URL.createObjectURL(f);d.a.src=d.url;
-  Object.assign(d,{nom:f.name.replace(/\.[^.]+$/,''),buf:null,pk:null,bpm:0,off:0,grid:false,norm:1,dur:0,cue:0,hc:[null,null],rate:1,nudge:1,syncLock:false,chargement:true,fichier:f,ov:{}});
+  Object.assign(d,{nom:f.name.replace(/\.[^.]+$/,''),buf:null,pk:null,bpm:0,off:0,grid:false,norm:1,dur:0,cue:0,hc:[null,null],rate:1,nudge:1,syncLock:false,chargement:true,fichier:f,ov:{},sonId:info&&info.id||null,joue:false});
   if(typeof stopDeckJobs=='function')stopDeckJobs(i);
   echoSet(d,false);revSet(d,false);flangerSet(d,false);agReset(d);applyRate(d);
   try{
     const buf=await AC.decodeAudioData(await f.arrayBuffer());
     if(d.fichier!==f)return false;
     d.buf=buf;d.pk=peaks(buf);d.dur=buf.duration;
-    const r=analyseTempo(buf);d.bpm=r.bpm;d.off=r.off;d.norm=r.norm;d.grid=d.bpm>0;
+    const r=info&&info.meta&&info.meta.bpm?info.meta:analyseTempo(buf);d.bpm=r.bpm;d.off=r.off;d.norm=r.norm;d.grid=d.bpm>0;d.key=r.key||null;
   }catch(e){console.error(e);toast('Tempo non détecté pour « '+d.nom+' » : lecture possible, mais sans boucles ni SYNC')}
-  d.chargement=false;mix();return true;
+  d.chargement=false;mix();if(typeof apresChargement=='function')apresChargement(i);return true;
 }
 
 /* --- moments musicaux à venir (en secondes réelles d'attente) --- */
