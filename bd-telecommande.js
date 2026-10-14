@@ -16,7 +16,7 @@ function telDemarrer(){
   const p=new Peer('beatdeck-'+telCode().toLowerCase());TEL.peer=p;
   p.on('open',()=>telEtat(TEL.conns.size?'Téléphone connecté':'Prête : en attente du téléphone'));
   p.on('connection',c=>{
-    c.on('open',()=>{TEL.conns.add(c);telEnvoyerBib(c);telEnvoyerDecks();telEtat('Téléphone connecté');toast('📱 Téléphone connecté')});
+    c.on('open',()=>{TEL.conns.add(c);telEnvoyerBib(c);telEnvoyerDecks();telEnvoyerFile(c);telEtat('Téléphone connecté');toast('📱 Téléphone connecté')});
     c.on('data',m=>telRecu(c,m));
     c.on('close',()=>{TEL.conns.delete(c);telEtat(TEL.conns.size?'Téléphone connecté':'Prête : en attente du téléphone')});
     c.on('error',()=>{});
@@ -55,6 +55,10 @@ async function telRecu(c,m){
     if(m.t=='deck'){const i=+m.deck,s=sonDe(m.id);if(!s||(i!==0&&i!==1))return;
       if(!D[i].a.paused){rep('Le deck '+(i+1)+' joue : impossible de le remplacer maintenant',false);return}
       const ok=await chargerSon(i,s.id);rep(ok?'« '+s.nom+' » est sur le deck '+(i+1):'Chargement impossible',ok)}
+    else if(m.t=='file'){const s=sonDe(m.id);if(!s)return;const n=ajouterFile(s.id);rep('📋 « '+s.nom+' » ajoutée à la file (n° '+n+')');toast('📱 Demande ajoutée à la file : « '+s.nom+' »')}
+    else if(m.t=='fileSup'){retirerFile(m.id)}
+    else if(m.t=='fileHaut'){monterFile(m.id)}
+    else if(m.t=='ensuite'&&D.some(d=>!d.a.paused)){const s=sonDe(m.id);if(!s)return;ajouterFile(s.id,true);rep('« '+s.nom+' » passera juste après (1re de la file)');toast('📱 Demande : « '+s.nom+' » passera juste après')}
     else if(m.t=='ensuite'){const s=sonDe(m.id);if(!s)return;const i=deckLibre();
       if(i<0){rep('Les deux decks jouent : réessaie après la prochaine transition',false);return}
       const ok=await chargerSon(i,s.id);rep(ok?'« '+s.nom+' » est prête sur le deck '+(i+1)+' : elle passera ensuite':'Chargement impossible',ok);if(ok)toast('📱 Demande : « '+s.nom+' » sur le deck '+(i+1))}
@@ -65,7 +69,7 @@ async function telRecu(c,m){
       if(typeof occupe=='function'&&occupe()){rep('Une transition est en cours : attends la fin',false);return}
       commande('play'+i,{t:'press'});commande('play'+i,{t:'release'})}
     else if(m.t=='passer'){const t=await passerMaintenant();rep(t||'OK',!!t&&t.startsWith('⏭'))}
-    else if(m.t=='coucou'){telEnvoyerBib(c);telEnvoyerDecks()}
+    else if(m.t=='coucou'){telEnvoyerBib(c);telEnvoyerDecks();telEnvoyerFile(c)}
   }catch(e){console.error(e);rep('Action impossible',false)}
 }
 

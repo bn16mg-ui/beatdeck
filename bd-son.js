@@ -247,7 +247,7 @@ function analyseSon(buf){
 async function chargerDeck(i,f,info){
   const d=D[i];if(!f)return false;
   if(!d.a.paused){toast('Le deck '+(i+1)+' joue : mets-le en pause avant de charger un autre morceau');return false}
-  killLoop(d);pauseDeck(d);if(d.url)URL.revokeObjectURL(d.url);
+  killLoop(d);pauseDeck(d);if(d.url)URL.revokeObjectURL(d.url);d.autoCharge=false;
   d.url=URL.createObjectURL(f);d.a.src=d.url;
   Object.assign(d,{nom:f.name.replace(/\.[^.]+$/,''),buf:null,pk:null,bpm:0,off:0,grid:false,norm:1,dur:0,cue:0,hc:[null,null],rate:1,nudge:1,syncLock:false,chargement:true,fichier:f,ov:{},sonId:info&&info.id||null,joue:false});
   if(typeof stopDeckJobs=='function')stopDeckJobs(i);

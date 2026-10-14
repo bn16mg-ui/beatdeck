@@ -225,3 +225,14 @@ body.edition #sx1 .ctl.edsel{outline:4px solid var(--or);box-shadow:0 0 30px #ff
 .info.err{border-color:#ff6f9f;color:#ffc5d6}
 .vidrow{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:6px 0 8px}
 button.vid{background:linear-gradient(135deg,#ff4fa3,#8a3cff);border-color:#ff8fd0;color:#fff;font-weight:700}
+.hb.rec{background:#c3124f;color:#fff;border-color:#ff6f9f;animation:recp 1.4s ease-in-out infinite;font-variant-numeric:tabular-nums}
+.hb.garde:not(.rec){box-shadow:0 0 0 2px #ff6f9f88}
+@keyframes recp{50%{box-shadow:0 0 22px #ff2d6f}}
+.info.rec{border-color:#ff6f9f;color:#ffd0de}
+button.stop{background:#c3124f;color:#fff;border-color:#ff6f9f}
+.ls button.fi{color:#5ef0d2}
+.ls .num{min-width:28px;text-align:center;color:#5ef0d2;font-size:18px}
+.sauv{margin-top:14px;padding:12px;border:1px solid var(--bord);border-radius:14px;background:#0a062880}
+.sauv .row{flex-wrap:wrap;gap:8px;margin:8px 0}
+.alerte{color:#ffb86b!important}
+#recL h3{font-size:16px;margin:16px 0 6px}

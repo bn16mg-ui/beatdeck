@@ -5,7 +5,7 @@
 <title>BeatDeck</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="bd-style.css?v=6.10.0">
+<link rel="stylesheet" href="bd-style.css?v=6.11.0">
 </head><body>
 <canvas id="ciel"></canvas>
 <div id="vp"><div id="stage">
@@ -16,6 +16,7 @@
     <button id="plat" class="pill" title="Ta platine : connexion et configuration">Platine…</button>
     <span class="sp"></span>
     <span class="aide">Tiens SHIFT pour voir les raccourcis en jaune</span>
+    <button class="hb" id="bRec" title="Enregistrer la soirée">⏺ Enregistrer</button>
     <button class="hb" id="bTel" title="Télécommande depuis ton téléphone">📱</button>
     <button class="hb" id="bEd" title="Choisir quel raccourci va sur quel bouton">✎ Raccourcis</button>
     <button class="hb" id="fs" title="Plein écran">⛶</button>
@@ -27,17 +28,26 @@
 
 <!-- Bibliothèque -->
 <div class="pan" id="bib" hidden><div class="card big">
-  <div class="ch2"><div class="tabs" id="bibTabs"><button data-o="sons" class="on">🎵 Mes sons <span id="tS" class="nb"></span></button><button data-o="duos">♥ Mes duos <span id="tD" class="nb"></span></button></div><button id="bibX">Fermer</button></div>
+  <div class="ch2"><div class="tabs" id="bibTabs"><button data-o="sons" class="on">🎵 Mes sons <span id="tS" class="nb"></span></button><button data-o="duos">♥ Mes duos <span id="tD" class="nb"></span></button><button data-o="file">📋 File d'attente <span id="tF" class="nb"></span></button></div><button id="bibX">Fermer</button></div>
   <div id="bSons">
     <div class="row"><button id="ajF" class="fort">＋ Ajouter des musiques</button><button id="ajD">＋ Ajouter un dossier entier</button><span class="sp"></span><small id="bibE" class="mu"></small></div>
     <input class="inp" id="bibQ" placeholder="Rechercher une musique…">
     <div id="lSons"></div>
-    <p class="mu petit">Touche un nom pour le choisir, puis 1 ou 2 pour le mettre sur un deck. Sur ta platine : tourne PARCOURIR puis appuie sur CHARGER 1 ou CHARGER 2. ♥ = la musique fait partie d'un duo.</p>
+    <p class="mu petit">Touche un nom pour le choisir, puis 1 ou 2 pour le mettre sur un deck. ＋📋 = l'ajouter à la file d'attente. Sur ta platine : tourne PARCOURIR puis appuie sur CHARGER 1 ou CHARGER 2. ♥ = la musique fait partie d'un duo.</p>
+    <div class="sauv"><b>💾 Sauvegarde</b> <small id="svE" class="mu"></small>
+      <div class="row"><button id="svC">💾 Sauvegarder tout (musiques + duos + réglages)</button><button id="svL">💾 Sauvegarde légère (sans les musiques)</button><button id="svR">📂 Restaurer une sauvegarde</button></div>
+      <p id="svP" class="info" hidden></p>
+      <p class="mu petit">La sauvegarde est un fichier « .beatdeck » qui va dans tes Téléchargements. Garde-le aussi sur Google Drive, une clé USB ou ton ordinateur. Si un jour tu perds tout (Chrome vidé, nouvelle tablette), ouvre l'appli et touche « Restaurer ».</p>
+    </div>
   </div>
   <div id="bDuos" hidden>
     <div class="row"><button id="duoNv" class="fort">＋ Créer un duo</button><button id="duoVid" class="vid">🎬 Mettre une vidéo de DJ</button><span class="sp"></span><small class="mu">Quand tu charges le 1er morceau d'un duo, le 2e se met tout seul sur l'autre deck.<br>🎬 Mets la vidéo d'un DJ : l'appli reconnaît les 2 musiques, crée le duo et copie sa transition.</small></div>
     <p id="bibVid" class="info" hidden></p>
     <div id="lDuos"></div>
+  </div>
+  <div id="bFile" hidden>
+    <div class="row"><span class="mu">Les musiques demandées passent dans l'ordre, chacune avec la meilleure transition. Si la musique en cours a un duo, son duo passe d'abord.</span><span class="sp"></span><button id="fileVide" hidden>Vider la file</button></div>
+    <div id="lFile"></div>
   </div>
 </div></div>
 
@@ -65,6 +75,16 @@
     <div class="telq"><div id="telQR"></div><div><div class="mu">Code</div><div id="telCode" class="telcode"></div><div class="mu petit" id="telLien"></div></div></div>
     <div class="row"><button id="telNv">Nouveau code</button></div>
   </div>
+</div></div>
+
+<!-- Enregistrer la soirée -->
+<div class="pan" id="recp" hidden><div class="card">
+  <div class="ch2"><h2>⏺ Enregistrer la soirée</h2><span class="sp"></span><button class="x">Fermer</button></div>
+  <p>Tout ce qui sort des enceintes (musiques, transitions, effets) est enregistré. Quand tu arrêtes, le fichier se télécharge tout seul. Même si l'appli se ferme par accident, l'enregistrement reste gardé dans la tablette et tu peux le récupérer ici.</p>
+  <p id="recE" class="info"></p>
+  <div class="row"><button id="recOn" class="fort">⏺ Démarrer l'enregistrement</button></div>
+  <p class="mu petit" id="recType"></p><p class="mu petit">Environ 85 Mo par heure. Laisse l'appli ouverte au premier plan pendant l'enregistrement.</p>
+  <div id="recL"></div>
 </div></div>
 
 <!-- Ta platine -->
@@ -95,15 +115,16 @@
 
 <script src="peerjs.min.js"></script>
 <script src="qrcode.js"></script>
-<script src="bd-interface.js?v=6.10.0"></script>
-<script src="bd-son.js?v=6.10.0"></script>
-<script src="bd-commandes.js?v=6.10.0"></script>
-<script src="bd-raccourcis.js?v=6.10.0"></script>
-<script src="bd-bibliotheque.js?v=6.10.0"></script>
-<script src="bd-auto.js?v=6.10.0"></script>
-<script src="bd-cerveau.js?v=6.10.0"></script>
-<script src="bd-video.js?v=6.10.0"></script>
-<script src="bd-telecommande.js?v=6.10.0"></script>
-<script src="bd-platine.js?v=6.10.0"></script>
+<script src="bd-interface.js?v=6.11.0"></script>
+<script src="bd-son.js?v=6.11.0"></script>
+<script src="bd-commandes.js?v=6.11.0"></script>
+<script src="bd-raccourcis.js?v=6.11.0"></script>
+<script src="bd-bibliotheque.js?v=6.11.0"></script>
+<script src="bd-auto.js?v=6.11.0"></script>
+<script src="bd-cerveau.js?v=6.11.0"></script>
+<script src="bd-video.js?v=6.11.0"></script>
+<script src="bd-options.js?v=6.11.0"></script>
+<script src="bd-telecommande.js?v=6.11.0"></script>
+<script src="bd-platine.js?v=6.11.0"></script>
 <script>demarrer()</script>
 </body></html>

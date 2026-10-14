@@ -72,7 +72,7 @@ async function chargerSon(i,id){
 function deckLibre(){const L=D.filter(d=>d.a.paused);if(!L.length)return -1;const v=L.find(d=>!d.a.src||d.joue);return(v||L[0]).i}
 
 /* ---------- duos : le 2e morceau se charge tout seul ---------- */
-const duoDe=id=>DUOS.find(d=>d.a==id)||null;
+const duoDe=id=>DUOS.find(d=>d.a==id&&sonDe(d.b))||null;
 function apresChargement(i){proposerDuo(i)}
 /* morceau qui colle le mieux (quand le morceau n'a pas de duo) : tempo, tonalité, énergie, sans reprendre un morceau déjà passé */
 const TEMP={},JOUES=new Set();
@@ -90,7 +90,9 @@ function meilleurPartenaire(aId,exclure){
   return best;
 }
 // le partenaire d'un morceau : son duo, sinon celui choisi automatiquement
-function paireDe(id){const d=duoDe(id);if(d)return d;const t=TEMP[id];return t&&sonDe(t)?{id:'t:'+id,a:id,b:t,temp:true}:null}
+function paireDe(id){const d=duoDe(id);if(d)return d;
+  if(typeof FILE!='undefined'){const f=FILE.find(x=>x!=id&&sonDe(x)&&!D.some(k=>k.sonId==x&&!k.a.paused));if(f)return{id:'f:'+id+'>'+f,a:id,b:f,temp:true,file:true}}
+  const t=TEMP[id];return t&&sonDe(t)?{id:'t:'+id,a:id,b:t,temp:true}:null}
 function proposerDuo(i){
   const d=D[i],o=D[1-i];if(!d.sonId)return;
   if(!duoDe(d.sonId)&&!TEMP[d.sonId]){   // pas de duo : on cherche la musique qui colle le mieux
@@ -101,9 +103,9 @@ function proposerDuo(i){
   const du=paireDe(d.sonId);if(!du)return;
   if(o.sonId==du.b)return;                                   // déjà en place
   if(!o.a.paused){d.duoAttente=du.b;return}                  // l'autre deck joue : on attendra qu'il soit libre
-  if(o.a.src&&!o.joue&&o.sonId){d.duoAttente=du.b;return}    // tu viens d'y charger autre chose : on ne l'écrase pas
+  if(o.a.src&&!o.joue&&o.sonId&&!o.autoCharge){d.duoAttente=du.b;return}    // tu viens d'y charger autre chose : on ne l'écrase pas
   d.duoAttente=null;const b=sonDe(du.b);if(!b)return;
-  chargerSon(o.i,b.id).then(ok=>{if(ok)toast(du.temp?'🎯 « '+b.nom+' » est la musique qui colle le mieux : prête sur le deck '+(o.i+1):'♥ Duo : « '+b.nom+' » est prêt sur le deck '+(o.i+1))});
+  chargerSon(o.i,b.id).then(ok=>{if(ok)o.autoCharge=true;if(ok)toast(du.file?'📋 File d\'attente : « '+b.nom+' » est prête sur le deck '+(o.i+1)+' et passera ensuite':du.temp?'🎯 « '+b.nom+' » est la musique qui colle le mieux : prête sur le deck '+(o.i+1):'♥ Duo : « '+b.nom+' » est prêt sur le deck '+(o.i+1))});
 }
 // si le 2e morceau attendait (l'autre deck jouait encore), on le charge dès que ce deck est libre
 setInterval(()=>{D.forEach((d,i)=>{const o=D[1-i];if(d.duoAttente&&o.a.paused&&!o.chargement&&(!o.a.src||o.joue))proposerDuo(i)})},1000);
@@ -130,7 +132,7 @@ function avisDuo(a,b){
 const BIB={onglet:'sons',q:'',sel:null,creation:null};
 function ouvrirBib(onglet){if(onglet)BIB.onglet=onglet;$('bib').hidden=false;rendreOnglets();rendreSons();rendreDuos();etatBib()}
 function fermerBib(){$('bib').hidden=true;if(BIB.creation){BIB.creation=null;rendreDuos()}}
-function rendreOnglets(){QA('#bibTabs button').forEach(b=>b.classList.toggle('on',b.dataset.o==BIB.onglet));$('bSons').hidden=BIB.onglet!='sons';$('bDuos').hidden=BIB.onglet!='duos';
+function rendreOnglets(){QA('#bibTabs button').forEach(b=>b.classList.toggle('on',b.dataset.o==BIB.onglet));$('bSons').hidden=BIB.onglet!='sons';$('bDuos').hidden=BIB.onglet!='duos';$('bFile').hidden=BIB.onglet!='file';
   $('tS').textContent=SONS.length;$('tD').textContent=DUOS.length}
 function etatBib(){const e=$('bibE');if(!e)return;let t=SONS.length+' musique'+(SONS.length>1?'s':'');if(ANA.en)t+=' · analyse '+(ANA.fait+1)+' sur '+ANA.total+'…';e.textContent=t;
   if(navigator.storage&&navigator.storage.estimate)navigator.storage.estimate().then(s=>{if(s.usage!=null&&!ANA.en)e.textContent=t+' · '+Math.round(s.usage/1048576)+' Mo utilisés'}).catch(()=>{})}
@@ -140,7 +142,7 @@ function listeFiltree(){const q=BIB.q.toLowerCase();return SONS.filter(s=>s.nom.
 function rendreSons(){
   const el=$('lSons');if(!el)return;rendreOnglets();const L=listeFiltree();
   el.innerHTML=L.map(s=>`<div class="ls${s.id==BIB.sel?' sel':''}" data-id="${esc(s.id)}"><span class="nm">${enDuo(s.id)?'<i class="coeur">♥</i>':''}${esc(s.nom)}<small>${esc(infoSon(s))}</small></span>
-    <button class="d0" data-ch="0">1</button><button class="d1" data-ch="1">2</button><button class="sup" data-sup="1" title="Retirer de la bibliothèque">✕</button></div>`).join('')
+    <button class="d0" data-ch="0">1</button><button class="d1" data-ch="1">2</button><button class="fi" data-fi="1" title="Ajouter à la file d'attente">＋📋</button><button class="sup" data-sup="1" title="Retirer de la bibliothèque">✕</button></div>`).join('')
     ||`<p class="vide">${SONS.length?'Aucune musique avec ce nom.':'Ta bibliothèque est vide. Touche « Ajouter des musiques » et choisis les musiques de ta tablette (tu peux en sélectionner plusieurs d\'un coup).'}</p>`;
 }
 function rendreDuos(){
@@ -189,6 +191,7 @@ async function initBib(){
   $('bibQ').oninput=e=>{BIB.q=e.target.value;rendreSons()};
   $('lSons').onclick=e=>{const r=e.target.closest('.ls');if(!r)return;const id=r.dataset.id,b=e.target.closest('button');
     if(b&&b.dataset.sup){supprimerSon(id);return}
+    if(b&&b.dataset.fi){const n=ajouterFile(id);toast('📋 « '+sonDe(id).nom+' » ajoutée à la file d\'attente (n° '+n+')');return}
     if(b&&b.dataset.ch){chargerSon(+b.dataset.ch,id).then(ok=>{if(ok){toast('Deck '+(+b.dataset.ch+1)+' : '+sonDe(id).nom);fermerBib()}});return}
     BIB.sel=id;rendreSons()};
   $('duoNv').onclick=()=>{BIB.creation=BIB.creation?null:{a:null,q:''};rendreDuos()};

@@ -7,7 +7,7 @@ const fmt=s=>isFinite(s)&&s>=0?Math.floor(s/60)+':'+String(Math.floor(s%60)).pad
 const LSg=(k,f)=>{try{const v=localStorage.getItem(k);return v==null?f:JSON.parse(v)}catch(e){return f}},LSs=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
 let tT;function toast(m,ok){const t=$('toast');t.textContent=m;t.className='on '+(ok===false?'err':ok?'ok':'');clearTimeout(tT);tT=setTimeout(()=>t.className='',3000)}
 
-const T={peer:null,conn:null,code:'',bib:{sons:[],duos:[]},onglet:'sons',q:'',essai:null,voulu:false};
+const T={peer:null,conn:null,code:'',file:[],bib:{sons:[],duos:[]},onglet:'sons',q:'',essai:null,voulu:false};
 function etat(t,ok){$('etat').textContent=t;$('etat').classList.toggle('ok',!!ok)}
 
 function connecter(code){
@@ -33,18 +33,22 @@ const envoyer=m=>{if(T.conn&&T.conn.open)T.conn.send(m);else toast('Pas connect�
 function recu(m){
   if(!m||typeof m!='object')return;
   if(m.t=='bib'){T.bib=m;rendre()}
+  else if(m.t=='file'){T.file=m.L||[];rendre()}
   else if(m.t=='decks'){m.decks.forEach((d,i)=>{const el=$('dk'+i);el.querySelector('.nm').textContent=d.nom||'Aucune musique';
     el.querySelector('.inf').textContent=d.chargement?'chargement…':d.charge?(d.joue?'▶ ':'⏸ ')+'-'+fmt(d.reste)+(d.bpm?' · '+d.bpm+' BPM':''):'';
     el.querySelector('button').textContent=d.joue?'⏸':'▶';el.classList.toggle('joue',d.joue)})}
   else if(m.t=='msg')toast(m.txt,m.ok);
 }
 function rendre(){
-  QA('.tabs button').forEach(b=>b.classList.toggle('on',b.dataset.o==T.onglet));
+  QA('.tabs button').forEach(b=>b.classList.toggle('on',b.dataset.o==T.onglet));$('nF').textContent=T.file.length||'';$('q').hidden=T.onglet=='file';
   const q=T.q.toLowerCase(),el=$('liste');
   if(T.onglet=='sons'){const L=T.bib.sons.filter(s=>s.nom.toLowerCase().includes(q));
     el.innerHTML=L.map(s=>`<div class="ligne" data-id="${esc(s.id)}"><div class="t"><div>${s.duo?'<span class="coeur">♥</span>':''}${esc(s.nom)}</div><small>${esc(s.info)}</small></div>
-      <button class="b0" data-a="deck" data-d="0">1</button><button class="b1" data-a="deck" data-d="1">2</button><button class="ens" data-a="ensuite">Ensuite</button></div>`).join('')
+      <button class="b0" data-a="deck" data-d="0">1</button><button class="b1" data-a="deck" data-d="1">2</button><button class="ens" data-a="ensuite">Ensuite</button><button class="fi" data-a="file" title="Ajouter à la file d'attente">＋📋</button></div>`).join('')
       ||`<p class="vide">${T.bib.sons.length?'Aucune musique avec ce nom.':'Aucune musique dans la bibliothèque de la tablette.'}</p>`}
+  else if(T.onglet=='file'){
+    el.innerHTML=T.file.map((s,k)=>`<div class="ligne" data-id="${esc(s.id)}"><b class="num">${k+1}</b><div class="t"><div>${esc(s.nom)}</div><small>${esc(s.info)}</small></div>${k?'<button data-a="fileHaut">↑</button>':''}<button data-a="fileSup">✕</button></div>`).join('')
+      ||'<p class="vide">La file d\'attente est vide. Dans « Sons », touche ＋📋 pour ajouter une demande.</p>'}
   else{const L=T.bib.duos.filter(d=>(d.a+' '+d.b).toLowerCase().includes(q));
     el.innerHTML=L.map(d=>`<div class="ligne duo" data-id="${esc(d.id)}"><div class="t"><div>${esc(d.a)} <span>→</span> ${esc(d.b)}</div><small>${d.trans?'Transition : '+esc(d.trans):'Transition pas encore validée'}</small></div><button class="ens" data-a="duo">Lancer ensuite</button></div>`).join('')
       ||'<p class="vide">Aucun duo : crée-les sur la tablette (Bibliothèque → Mes duos).</p>'}
@@ -56,7 +60,8 @@ $('code').addEventListener('keydown',e=>{if(e.key=='Enter')connecter($('code').v
 document.querySelector('.tabs').onclick=e=>{const b=e.target.closest('button');if(!b)return;T.onglet=b.dataset.o;rendre()};
 $('q').oninput=e=>{T.q=e.target.value;rendre()};
 $('liste').onclick=e=>{const b=e.target.closest('[data-a]'),l=e.target.closest('[data-id]');if(!b||!l)return;const id=l.dataset.id;
-  if(b.dataset.a=='deck')envoyer({t:'deck',id,deck:+b.dataset.d});else if(b.dataset.a=='ensuite')envoyer({t:'ensuite',id});else if(b.dataset.a=='duo')envoyer({t:'duo',id})};
+  if(b.dataset.a=='deck')envoyer({t:'deck',id,deck:+b.dataset.d});else if(b.dataset.a=='ensuite')envoyer({t:'ensuite',id});else if(b.dataset.a=='duo')envoyer({t:'duo',id});
+  else if(b.dataset.a=='file')envoyer({t:'file',id});else if(b.dataset.a=='fileSup')envoyer({t:'fileSup',id});else if(b.dataset.a=='fileHaut')envoyer({t:'fileHaut',id})};
 $('suiv').onclick=()=>envoyer({t:'passer'});
 QA('[data-lec]').forEach(b=>b.onclick=()=>envoyer({t:'lecture',deck:+b.dataset.lec}));
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState=='visible'&&T.voulu&&(!T.conn||!T.conn.open))connecter(T.code)});
