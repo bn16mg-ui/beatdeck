@@ -26,8 +26,8 @@ function chromaDe(x){
   return{C:out,n};
 }
 // pour chaque moment de la vidéo : où en est la musique, et à quelle vitesse
-function suivre(V,S){
-  const W=Math.round(2/VDT),pas=Math.max(1,Math.round(.5/VDT)),rates=[];for(let r=.92;r<=1.081;r+=.02)rates.push(+r.toFixed(2));
+function suivre(V,S,R){
+  const W=Math.round(2/VDT),pas=Math.max(1,Math.round(.5/VDT)),rates=R||[];if(!R)for(let r=.92;r<=1.081;r+=.02)rates.push(+r.toFixed(2));
   const nV=V.n,nS=S.n,Dm=new Float32Array(nV*nS);
   for(let i=0;i<nV;i++)for(let j=0;j<nS;j++){let s=0;for(let b=0;b<12;b++)s+=V.C[i*12+b]*S.C[j*12+b];Dm[i*nS+j]=s}
   const out=[];
@@ -68,15 +68,24 @@ function ecouterVideo(fichier,etape){
 const EMPREINTES={};
 async function empreinteSon(s){
   if(EMPREINTES[s.id])return EMPREINTES[s.id];
-  const buf=await AC.decodeAudioData(await s.blob.arrayBuffer()),e=chromaDe(await resample(buf));EMPREINTES[s.id]=e;return e;
+  if(s.emp&&s.emp.C&&s.emp.v==1){EMPREINTES[s.id]=s.emp;return s.emp}
+  const buf=await AC.decodeAudioData(await s.blob.arrayBuffer()),e=chromaDe(await resample(buf));e.v=1;EMPREINTES[s.id]=e;
+  s.emp=e;try{await BASE.mettre(s)}catch(x){}   // gardée dans la tablette : la prochaine fois c'est immédiat
+  return e;
 }
-async function analyserVideo(fichier,du,etape){
-  const a=sonDe(du.a),b=sonDe(du.b);
+// son de la vidéo → empreinte
+async function lireVideo(fichier,etape){
   etape('Lecture du son de la vidéo…');let bufV;
   try{if(window.VFORCE)throw 0;bufV=await AC.decodeAudioData(await fichier.arrayBuffer())}
   catch(e){try{bufV=await ecouterVideo(fichier,etape)}catch(e2){console.error(e2);return{erreur:'Impossible de lire le son de cette vidéo. Essaie une vidéo MP4 enregistrée sur ta tablette.'}}}
   if(bufV.duration<4)return{erreur:'Vidéo trop courte.'};if(bufV.duration>240)return{erreur:'Vidéo trop longue : garde seulement le passage de la transition (moins de 4 minutes).'};
-  const V=chromaDe(await resample(bufV));await sleep(20);
+  const V=chromaDe(await resample(bufV));await sleep(20);return{V,dur:bufV.duration};
+}
+async function analyserVideo(fichier,du,etape){
+  const L=await lireVideo(fichier,etape);if(L.erreur)return L;return analyserAvecV(L.V,du,etape);
+}
+async function analyserAvecV(V,du,etape){
+  const a=sonDe(du.a),b=sonDe(du.b);
   etape('Empreinte de « '+a.nom+' »…');const SA=await empreinteSon(a);await sleep(20);
   etape('Empreinte de « '+b.nom+' »…');const SB=await empreinteSon(b);await sleep(20);
   etape('Comparaison avec « '+a.nom+' »…');const trA=suivre(V,SA);await sleep(20);
@@ -110,6 +119,58 @@ async function analyserVideo(fichier,du,etape){
   if(Math.abs(LB.r-1)>.02||Math.abs(LA.r-1)>.02)R.push('le DJ avait changé la vitesse : '+(Math.abs(LA.r-1)>.02?'« '+a.nom+' » '+(LA.r>1?'+':'')+nf((LA.r-1)*100,0)+' % ':'')+(Math.abs(LB.r-1)>.02?'« '+b.nom+' » '+(LB.r>1?'+':'')+nf((LB.r-1)*100,0)+' %':''));
   const conf=Math.min(LA.n,LB.n)>=10?'bonne':'moyenne';R.push('Confiance de la reconnaissance : '+conf);
   return{plan:{tech:'copie',exit,entry,riser:false,copie:c,score:9,raisons:R,resume:'À '+fmt(exit)+' : transition du DJ de la vidéo, « '+b.nom+' » entre à '+fmt(entry)+(c.filtreB?' étouffé puis s\'ouvre':'')+(c.aMode=='voix'?', voix de « '+a.nom+' » isolée':'')+(c.echo?', écho à la fin':''),video:true}};
+}
+
+/* --- reconnaître tout seul les musiques de la vidéo dans ta bibliothèque --- */
+const zone=(tr,L)=>{const t=tr.filter((x,k)=>L.inl[k]).map(x=>x.t);return[Math.min(...t)-1,Math.max(...t)+1]};
+async function reconnaitreVideo(fichier,etape){
+  const Lv=await lireVideo(fichier,etape);if(Lv.erreur)return Lv;const V=Lv.V,dur=Lv.dur;
+  const liste=SONS.filter(s=>s.blob&&!(s.meta&&s.meta.erreur)),T=[];
+  if(!liste.length)return{erreur:'Ta bibliothèque est vide : ajoute d\'abord tes musiques.'};
+  for(let i=0;i<liste.length;i++){const s=liste[i];
+    etape('Recherche dans ta bibliothèque… '+(i+1)+' / '+liste.length+(s.emp||EMPREINTES[s.id]?'':' (1re fois : un peu plus long)'));
+    let E;try{E=await empreinteSon(s)}catch(e){continue}
+    const tr=suivre(V,E,[.96,1,1.04]),L=droite(tr);if(L)T.push({s,n:L.n,z:zone(tr,L)});await sleep(5)}
+  // une même musique en double dans la bibliothèque (ex. « (1) ») : on garde la meilleure
+  T.sort((x,y)=>y.n-x.n);const G=[];
+  for(const c of T){const dbl=G.some(g=>{const o=Math.min(g.z[1],c.z[1])-Math.max(g.z[0],c.z[0]);return o>.7*Math.min(g.z[1]-g.z[0],c.z[1]-c.z[0])});if(!dbl)G.push(c)}
+  const trous=z=>{const r=[];if(z[0]>4)r.push([0,z[0]]);if(dur-z[1]>4)r.push([z[1],dur]);return r};
+  if(!G.length)return{manque:[[0,Math.min(dur,dur/2)],[dur/2,dur]],trouves:[],dur};
+  if(G.length==1)return{manque:trous(G[0].z),trouves:[G[0].s],dur};
+  const deux=G.slice(0,2).sort((x,y)=>x.z[0]-y.z[0]);
+  return{a:deux[0].s,b:deux[1].s,autres:G.slice(2).map(g=>g.s),V,dur};
+}
+let VID_URL=null;
+function ecouterPassage(t0,t1){
+  const a=$('vidAudio');if(!a||!VID_URL)return;a.src=VID_URL;a.currentTime=t0;a.play().catch(()=>{});
+  clearTimeout(a._t);a._t=setTimeout(()=>a.pause(),Math.max(3,Math.min(t1-t0,20))*1000);
+}
+function reconnaitreClic(){
+  const inp=document.createElement('input');inp.type='file';inp.accept='video/*,audio/*';
+  inp.onchange=async()=>{const f=inp.files[0];if(!f)return;const el=$('bibVid');el.hidden=false;el.className='info';
+    if(VID_URL)URL.revokeObjectURL(VID_URL);VID_URL=URL.createObjectURL(f);
+    const etape=t=>{el.textContent='🎬 '+t};
+    try{const r=await reconnaitreVideo(f,etape);
+      if(r.erreur){el.className='info err';el.textContent='🎬 '+r.erreur;return}
+      if(r.manque){el.className='info err';
+        const nb=2-r.trouves.length,pass=r.manque.map(([x,y])=>`<button class="vid" data-ecp="${x}|${y}">▶ Écouter la vidéo de ${fmt(x)} à ${fmt(y)}</button>`).join(' ');
+        el.innerHTML=(r.trouves.length?`🎬 J'ai reconnu <b>« ${esc(r.trouves[0].nom)} »</b>. `:'🎬 ')+
+          `<b>${nb==2?'Les deux musiques de la vidéo ne sont pas':'L\'autre musique de la vidéo n\'est pas'} dans ta bibliothèque.</b> `+
+          `Télécharge-${nb==2?'les':'la'}, ajoute-${nb==2?'les':'la'} dans « Mes sons », puis remets la vidéo.<br>`+
+          `<small>Je ne peux pas te donner son nom (il faudrait un service payant en ligne). Astuce : appuie sur « Écouter » et lance Shazam sur ton téléphone pour la trouver.</small><br>${pass}<audio id="vidAudio" hidden></audio>`;return}
+      // les deux sont là : on fait (ou retrouve) le duo
+      let du=DUOS.find(d=>d.a==r.a.id&&d.b==r.b.id);
+      if(!du){const ex=DUOS.find(d=>d.a==r.a.id);
+        if(ex&&!confirm('Vidéo : « '+r.a.nom+' » → « '+r.b.nom+' ».\n« '+r.a.nom+' » a déjà un duo avec « '+((sonDe(ex.b)||{}).nom||'?')+' ». Le remplacer ?')){el.textContent='🎬 Reconnu : « '+r.a.nom+' » → « '+r.b.nom+' ». Duo existant gardé, rien n\'a changé.';return}
+        DUOS=DUOS.filter(d=>d.a!=r.a.id);du={id:'d'+Date.now().toString(36),a:r.a.id,b:r.b.id,cree:Date.now()};DUOS.push(du);sauverDuos()}
+      const an=await analyserAvecV(r.V,du,etape);
+      rendreDuos();rendreSons();
+      if(an.erreur){el.className='info err';el.textContent='🎬 Reconnu : « '+r.a.nom+' » → « '+r.b.nom+' » (duo créé), mais : '+an.erreur;return}
+      el.className='info ok';el.textContent='🎬 Reconnu : « '+r.a.nom+' » → « '+r.b.nom+' ». Duo prêt avec la transition du DJ.'+(r.autres.length?' (J\'entends aussi « '+r.autres.map(x=>x.nom).join(' », « ')+' » : remets un passage plus court si ce n\'était pas la bonne transition.)':'');
+      ouvrirPrep(du.id);PREP.props=PREP.props.filter(p=>!p.video);PREP.props.unshift(an.plan);rendrePrep();
+      toast('🎬 Transition de la vidéo retrouvée : écoute-la puis valide-la')}
+    catch(e){console.error(e);el.className='info err';el.textContent='🎬 Analyse impossible : '+(e.message||e)}};
+  inp.click();
 }
 
 /* --- la transition copiée, rejouée avec tes fichiers --- */
@@ -151,4 +212,5 @@ function copierVideo(){
   inp.click();
 }
 
-function initVideo(){$('prVidB').onclick=copierVideo}
+function initVideo(){$('prVidB').onclick=copierVideo;$('duoVid').onclick=reconnaitreClic;
+  $('bibVid').addEventListener('click',e=>{const b=e.target.closest('[data-ecp]');if(b){const[x,y]=b.dataset.ecp.split('|').map(Number);ecouterPassage(x,y)}})}

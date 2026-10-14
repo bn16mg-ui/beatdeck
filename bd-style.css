@@ -224,3 +224,4 @@ body.edition #sx1 .ctl.edsel{outline:4px solid var(--or);box-shadow:0 0 30px #ff
 
 .info.err{border-color:#ff6f9f;color:#ffc5d6}
 .vidrow{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:6px 0 8px}
+button.vid{background:linear-gradient(135deg,#ff4fa3,#8a3cff);border-color:#ff8fd0;color:#fff;font-weight:700}

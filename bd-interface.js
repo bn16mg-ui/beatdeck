@@ -2,7 +2,7 @@
 /* ===== BeatDeck 6 · l'interface =====
    La platine The Next Beat by Tiësto SX1 dessinée à l'écran, commandes aux mêmes emplacements que la vraie.
    Chaque commande (à l'écran ou sur la platine) appelle commande(id, geste) dans bd-commandes.js. */
-const VERSION='6.9.0';
+const VERSION='6.10.0';
 const $=id=>document.getElementById(id),Q=(s,r=document)=>r.querySelector(s),QA=(s,r=document)=>[...r.querySelectorAll(s)];
 const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
 const esc=t=>String(t??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));

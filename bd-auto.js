@@ -308,7 +308,7 @@ function htmlProposes(){
   return`<h3 class="ptit">🤖 Duos proposés par l'appli (${PROPOS.length}) <button data-act="proposer">Recalculer</button></h3>`+PROPOS.map(p=>{const a=sonDe(p.a),b=sonDe(p.b);if(!a||!b)return'';const av=avisDuo(a,b),pl=planDuo(p);
     return`<div class="duo prop2" data-pr="${esc(p.id)}"><div class="dt"><span class="d0">${esc(a.nom)}</span><i>→</i><span class="d1">${esc(b.nom)}</span><span class="tag">${Math.round(p.sc.s*100)} %</span></div>
       ${av?`<ul>${av.av.map(x=>'<li>'+esc(x)+'</li>').join('')}</ul>`:''}${pl?`<p class="cons">Meilleure transition : <b>${esc(NOMT[pl.tech])}</b> (sortie à ${fmt(pl.exit)}, entrée à ${fmt(pl.entry)})</p>`:''}
-      <div class="row"><button data-act="pvoir" class="fort">🎚 Voir les transitions</button><button data-act="pgarde">✓ Garder ce duo</button><button data-act="prefus">✕ Pas bien</button></div></div>`}).join('')+'<h3 class="ptit">♥ Mes duos</h3>';
+      <div class="row"><button data-act="pvoir" class="fort">🎚 Voir les transitions</button><button data-act="pvid" class="vid">🎬 Copier une vidéo de DJ</button><button data-act="pgarde">✓ Garder ce duo</button><button data-act="prefus">✕ Pas bien</button></div></div>`}).join('')+'<h3 class="ptit">♥ Mes duos</h3>';
 }
 
 /* ---------- 7. ⏭ SUIVANT : passer à la musique suivante à n'importe quel moment ----------

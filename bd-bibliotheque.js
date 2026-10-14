@@ -52,7 +52,7 @@ async function analyserTout(){
   const a=SONS.filter(s=>!s.meta||(!s.meta.erreur&&(s.meta.v||1)<META_V));ANA.fait=0;ANA.total=a.length;
   for(const s of a){
     etatBib();
-    try{const buf=await AC.decodeAudioData(await s.blob.arrayBuffer());s.meta=analyseSon(buf)}catch(e){console.error(e);s.meta={v:1,erreur:true}}
+    try{const buf=await AC.decodeAudioData(await s.blob.arrayBuffer());s.meta=analyseSon(buf);if(typeof chromaDe=='function'&&!s.emp){try{const e=chromaDe(await resample(buf));e.v=1;s.emp=e}catch(x){}}}catch(e){console.error(e);s.meta={v:1,erreur:true}}
     try{await BASE.mettre(s)}catch(e){}
     ANA.fait++;rendreSons();rendreDuos();await sleep(30);
   }
@@ -159,7 +159,7 @@ function rendreDuos(){
       <div class="dm"><small>${esc(infoSon(a))}</small><small>${esc(infoSon(b))}</small></div>
       ${av?`<ul>${av.av.map(x=>'<li>'+esc(x)+'</li>').join('')}</ul><p class="cons">Transition conseillée : <b>${esc(av.conseil)}</b> <span class="mu">(estimation d'après l'analyse)</span></p>`:'<p class="mu">Analyse en cours…</p>'}
       ${d.trans?`<p class="valide">✓ Transition validée : <b>${esc(NOMT[d.trans.tech])}</b> · sortie à ${fmt(d.trans.exit)} · entrée à ${fmt(d.trans.entry)}</p>`:'<p class="mu">Pas encore de transition validée.</p>'}
-      <div class="row"><button data-act="prep" class="fort">🎚 Préparer la transition</button><button data-act="charge">Charger : 1er sur le deck 1, 2e sur le deck 2</button><button data-act="inv">⇄ Inverser l'ordre</button><button data-act="sup">✕ Supprimer</button></div></div>`}).join('')+(DUOS.length?'':'<p class="vide">Aucun duo gardé pour l\'instant.</p>')
+      <div class="row"><button data-act="prep" class="fort">🎚 Préparer la transition</button><button data-act="vid" class="vid">🎬 Copier une vidéo de DJ</button><button data-act="charge">Charger : 1er sur le deck 1, 2e sur le deck 2</button><button data-act="inv">⇄ Inverser l'ordre</button><button data-act="sup">✕ Supprimer</button></div></div>`}).join('')+(DUOS.length?'':'<p class="vide">Aucun duo gardé pour l\'instant.</p>')
     ||hp+'<p class="vide">Aucun duo pour l\'instant. Touche « ＋ Créer un duo », puis choisis le 1er morceau et celui qui vient après. Quand tu chargeras le 1er sur un deck, le 2e se chargera tout seul sur l\'autre.</p>';
 }
 
@@ -201,10 +201,11 @@ async function initBib(){
       BIB.creation=null;rendreDuos();rendreSons();return}
     const b=e.target.closest('[data-act]');if(b&&b.dataset.act=='proposer'){proposerDuos(true);return}
     const pr=e.target.closest('[data-pr]');if(b&&pr){const p=PROPOS.find(x=>x.id==pr.dataset.pr);if(!p)return;
-      if(b.dataset.act=='pvoir')ouvrirPrep(p.id);else if(b.dataset.act=='pgarde'){if(garderPropose(p))toast('♥ Duo gardé')}else if(b.dataset.act=='prefus'){refuserPropose(p);toast('D\'accord, je ne le proposerai plus')}return}
+      if(b.dataset.act=='pvoir')ouvrirPrep(p.id);else if(b.dataset.act=='pvid'){ouvrirPrep(p.id);copierVideo()}else if(b.dataset.act=='pgarde'){if(garderPropose(p))toast('♥ Duo gardé')}else if(b.dataset.act=='prefus'){refuserPropose(p);toast('D\'accord, je ne le proposerai plus')}return}
     const c=e.target.closest('[data-du]');if(!b||!c)return;const d=DUOS.find(x=>x.id==c.dataset.du);if(!d)return;
     if(b.dataset.act=='sup'){if(confirm('Supprimer ce duo ?')){DUOS=DUOS.filter(x=>x!==d);sauverDuos();rendreDuos();rendreSons()}}
     else if(b.dataset.act=='prep'){ouvrirPrep(d.id)}
+    else if(b.dataset.act=='vid'){ouvrirPrep(d.id);copierVideo()}
     else if(b.dataset.act=='inv'){if(DUOS.some(x=>x!==d&&x.a==d.b)){toast('« '+sonDe(d.b).nom+' » a déjà son propre duo');return}[d.a,d.b]=[d.b,d.a];delete d.trans;sauverDuos();rendreDuos()}
     else if(b.dataset.act=='charge'){if(D.some(x=>!x.a.paused)){toast('Mets les deux decks en pause d\'abord');return}
       chargerSon(0,d.a).then(()=>chargerSon(1,d.b)).then(()=>{toast('Duo chargé');fermerBib()})}
